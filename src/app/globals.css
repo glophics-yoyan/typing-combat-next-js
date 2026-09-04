@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0a0a0f;
+  --foreground: #fafafa;
+  --primary: #00ff88;
+  --primary-glow: #00ff8880;
+  --danger: #ff3366;
+  --danger-glow: #ff336680;
+  --muted: #1a1a2e;
+  --muted-foreground: #8888a0;
+  --border: #2a2a4a;
+  --card: #12121f;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-danger: var(--danger);
+  --color-muted: var(--muted);
+  --color-card: var(--card);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 5px var(--primary-glow), 0 0 10px var(--primary-glow);
+  }
+  to {
+    box-shadow: 0 0 10px var(--primary-glow), 0 0 20px var(--primary-glow), 0 0 30px var(--primary-glow);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+.quote-char {
+  display: inline-block;
+  transition: color 0.1s, background-color 0.1s;
+}
+
+.quote-char.correct {
+  color: var(--primary);
+}
+
+.quote-char.incorrect {
+  color: var(--danger);
+  background-color: var(--danger-glow);
+}
+
+.quote-char.current {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  border-radius: 2px;
+}
+
+.quote-char.pending {
+  color: var(--muted-foreground);
+}
+
+input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+::selection {
+  background-color: var(--primary);
+  color: var(--background);
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mobile-full {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+  }
+}
