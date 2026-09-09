@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { recordMatch } from '@/lib/storage';
 import { useBattle } from '@/hooks/useBattle';
 import { HealthBars } from '@/components/game/HealthBars';
@@ -18,6 +19,8 @@ interface BattleArenaProps {
 }
 
 function ResultModal({ gameState, oppName }: { gameState: GameState; oppName: string }) {
+  const router = useRouter();
+
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
       <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-8 w-full max-w-md text-center animate-in fade-in zoom-in-95">
@@ -47,7 +50,7 @@ function ResultModal({ gameState, oppName }: { gameState: GameState; oppName: st
 
         <div className="flex gap-3">
           <button
-            onClick={() => { window.location.href = '/'; }}
+            onClick={() => { router.push('/'); }}
             className="flex-1 py-3 px-4 border border-[var(--border)] text-white rounded-lg hover:bg-[var(--muted)] transition-colors"
           >
             Main Menu
@@ -71,8 +74,6 @@ export function BattleArena({
   username,
   opponentUsername = 'Opponent',
 }: BattleArenaProps) {
-  const [showResult, setShowResult] = useState(false);
-
   const {
     gameState,
     connected,
@@ -81,6 +82,7 @@ export function BattleArena({
     handleKeystroke,
     handleReady,
     startCountdown,
+    retryConnection,
     opponentUsername: hookOpponentUsername,
   } = useBattle({
     roomCode,
@@ -89,7 +91,6 @@ export function BattleArena({
     username,
     onGameEnd: (won, wpm, accuracy, duration) => {
       void recordMatch(won, wpm, accuracy, duration, opponentUsername);
-      setShowResult(true);
     },
   });
 
@@ -132,8 +133,17 @@ export function BattleArena({
       </header>
 
       {error && (
-        <div className="mx-6 mt-4 p-3 bg-[var(--danger)]/20 border border-[var(--danger)]/50 rounded-lg text-sm text-[var(--danger)]">
-          {error}
+        <div className="mx-6 mt-4 p-3 bg-[var(--danger)]/20 border border-[var(--danger)]/50 rounded-lg text-sm text-[var(--danger)] flex items-center justify-between gap-3">
+          <span>{error}</span>
+          {!connected && (
+            <button
+              type="button"
+              onClick={retryConnection}
+              className="shrink-0 rounded-md border border-[var(--danger)]/50 px-3 py-1 font-medium hover:bg-[var(--danger)]/10"
+            >
+              Retry
+            </button>
+          )}
         </div>
       )}
 

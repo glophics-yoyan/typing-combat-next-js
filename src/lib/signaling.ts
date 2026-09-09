@@ -4,9 +4,23 @@ import type { SignalData } from 'simple-peer';
 const POLL_INTERVAL = 500;
 const MAX_POLL_DURATION = 30000;
 
+export interface SignalEnvelope {
+  sessionId: string;
+  signal: SignalData;
+}
+
+function getSignalEnvelope(value: unknown): SignalEnvelope | null {
+  if (!value || typeof value !== 'object') return null;
+
+  const signal_envelope = value as Partial<SignalEnvelope>;
+  if (typeof signal_envelope.sessionId !== 'string' || !signal_envelope.signal) return null;
+
+  return signal_envelope as SignalEnvelope;
+}
+
 export async function pollForOffer(
   roomCode: string,
-  onOffer: (offer: SignalData) => void,
+  onOffer: (offer: SignalEnvelope) => void,
   onTimeout: () => void
 ): Promise<() => void> {
   let stopped = false;
@@ -27,8 +41,9 @@ export async function pollForOffer(
 
       if (res.ok) {
         const data = await res.json();
-        if (data.offer && !data.answer) {
-          onOffer(data.offer);
+        const offer = getSignalEnvelope(data.offer);
+        if (offer) {
+          onOffer(offer);
           return;
         }
       }
@@ -48,6 +63,7 @@ export async function pollForOffer(
 
 export async function pollForAnswer(
   roomCode: string,
+  sessionId: string,
   onAnswer: (answer: SignalData) => void,
   onTimeout: () => void
 ): Promise<() => void> {
@@ -69,8 +85,9 @@ export async function pollForAnswer(
 
       if (res.ok) {
         const data = await res.json();
-        if (data.answer) {
-          onAnswer(data.answer);
+        const answer = getSignalEnvelope(data.answer);
+        if (answer?.sessionId === sessionId) {
+          onAnswer(answer.signal);
           return;
         }
       }
@@ -161,20 +178,20 @@ export async function pollForIceCandidates(
   };
 }
 
-export async function sendOffer(roomCode: string, offer: SignalData): Promise<void> {
+export async function sendOffer(roomCode: string, sessionId: string, offer: SignalData): Promise<void> {
   const res = await fetch(`/api/rooms/${roomCode}/signaling`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'offer', payload: offer }),
+    body: JSON.stringify({ type: 'offer', payload: { sessionId, signal: offer } }),
   });
   if (!res.ok) throw new Error('Failed to send offer');
 }
 
-export async function sendAnswer(roomCode: string, answer: SignalData): Promise<void> {
+export async function sendAnswer(roomCode: string, sessionId: string, answer: SignalData): Promise<void> {
   const res = await fetch(`/api/rooms/${roomCode}/signaling`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'answer', payload: answer }),
+    body: JSON.stringify({ type: 'answer', payload: { sessionId, signal: answer } }),
   });
   if (!res.ok) throw new Error('Failed to send answer');
 }

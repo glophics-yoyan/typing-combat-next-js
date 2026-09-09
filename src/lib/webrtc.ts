@@ -4,7 +4,27 @@ import type { WebRTCMessage, PlayerState } from '@/types';
 type MessageHandler = (message: WebRTCMessage) => void;
 type ConnectionHandler = (connected: boolean) => void;
 type ErrorHandler = (error: Error) => void;
-type SignalHandler = (data: SimplePeer.SignalData) => void;
+type SignalHandler = (data: SimplePeer.SignalData) => void | Promise<void>;
+
+function getIceServers(): RTCIceServer[] {
+  const ice_servers: RTCIceServer[] = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ];
+  const turn_url = process.env.NEXT_PUBLIC_TURN_URL;
+  const turn_username = process.env.NEXT_PUBLIC_TURN_USERNAME;
+  const turn_credential = process.env.NEXT_PUBLIC_TURN_CREDENTIAL;
+
+  if (turn_url && turn_username && turn_credential) {
+    ice_servers.push({
+      urls: turn_url.split(',').map((url) => url.trim()).filter(Boolean),
+      username: turn_username,
+      credential: turn_credential,
+    });
+  }
+
+  return ice_servers;
+}
 
 export class WebRTCManager {
   private peer: SimplePeer.Instance | null = null;
@@ -21,20 +41,20 @@ export class WebRTCManager {
     this.isInitiator = isInitiator;
   }
 
-  initialize(onSignal: (data: SimplePeer.SignalData) => void): void {
+  initialize(onSignal: SignalHandler): void {
     this.peer = new SimplePeer({
       initiator: this.isInitiator,
       trickle: false,
       config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-        ],
+        iceServers: getIceServers(),
       },
     });
 
     this.peer.on('signal', (data) => {
-      onSignal(data);
+      void Promise.resolve(onSignal(data)).catch((error: unknown) => {
+        const signal_error = error instanceof Error ? error : new Error('Failed to exchange WebRTC signal');
+        this.notifyError(signal_error);
+      });
       if (this.signalResolver) {
         this.signalResolver(data);
         this.signalResolver = null;
