@@ -1,215 +1,117 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { recordMatch } from '@/lib/storage';
 import { useBattle } from '@/hooks/useBattle';
 import { HealthBars } from '@/components/game/HealthBars';
-import { QuoteDisplay } from '@/components/game/QuoteDisplay';
 import { TypingInterface } from '@/components/game/TypingInterface';
 import { BattleScene } from '@/components/three/BattleScene';
-import type { GameState } from '@/types';
+import { ArenaArtwork, Button, Field, GameDialog, GameFooter, GameHeader, Metric, Panel, Status } from '@/components/game/GameUI';
 
 interface BattleArenaProps {
-  roomCode: string;
-  isHost: boolean;
-  userId: string;
-  username: string;
-  opponentUsername?: string;
+    roomCode: string;
+    isHost: boolean;
+    userId: string;
+    username: string;
+    opponentUsername?: string;
 }
 
-function ResultModal({ gameState, oppName }: { gameState: GameState; oppName: string }) {
-  const router = useRouter();
+export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user_id, username, opponentUsername: opponent_username = 'Opponent' }: BattleArenaProps) {
+    const [copy_message, setCopyMessage] = useState('');
+    const [invite_url, setInviteUrl] = useState('');
+    const [save_error, setSaveError] = useState('');
+    const {
+        gameState: game_state, connected, error, countdown,
+        handleKeystroke, handleReady, startCountdown, retryConnection,
+        opponentUsername: live_opponent_name,
+    } = useBattle({
+        roomCode: room_code,
+        isHost: is_host,
+        userId: user_id,
+        username,
+        onGameEnd: (won, wpm, accuracy, duration) => {
+            void recordMatch(won, wpm, accuracy, duration, live_opponent_name || opponent_username)
+                .catch(() => setSaveError('This result could not be saved to your browser.'));
+        },
+    });
+    const opponent_name = live_opponent_name || opponent_username;
+    const opponent_state = game_state?.opponentState;
+    const waiting = game_state?.status === 'waiting';
 
-  return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] p-8 w-full max-w-md text-center animate-in fade-in zoom-in-95">
-        <div className={`text-6xl font-bold mb-4 ${gameState.winner === 'me' ? 'text-[var(--primary)]' : 'text-[var(--danger)]'}`}>
-          {gameState.winner === 'me' ? 'VICTORY' : 'DEFEAT'}
-        </div>
-        <p className="text-xl mb-6">
-          {gameState.winner === 'me'
-            ? `You defeated ${oppName}!`
-            : `${oppName} defeated you.`}
-        </p>
+    useEffect(() => {
+        const frame_id = requestAnimationFrame(() => setInviteUrl(window.location.origin + '/?join=' + room_code));
+        return () => cancelAnimationFrame(frame_id);
+    }, [room_code]);
 
-        <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-[var(--muted)] rounded-xl">
-          <div>
-            <p className="text-sm text-[var(--muted-foreground)]">Your WPM</p>
-            <p className="text-3xl font-bold font-mono text-[var(--primary)]">
-              {Math.round(gameState.myState.wpm)}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[var(--muted-foreground)]">Accuracy</p>
-            <p className="text-3xl font-bold font-mono text-[var(--primary)]">
-              {Math.round(gameState.myState.accuracy * 100)}%
-            </p>
-          </div>
-        </div>
+    useEffect(() => {
+        if (is_host && connected && game_state?.status === 'waiting' && game_state.myState.isReady && game_state.opponentState?.isReady) startCountdown();
+    }, [game_state, is_host, connected, startCountdown]);
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => { router.push('/'); }}
-            className="flex-1 py-3 px-4 border border-[var(--border)] text-white rounded-lg hover:bg-[var(--muted)] transition-colors"
-          >
-            Main Menu
-          </button>
-          <button
-            onClick={() => { window.location.reload(); }}
-            className="flex-1 py-3 px-4 bg-[var(--primary)] text-[var(--background)] font-bold rounded-lg hover:opacity-90 transition-opacity"
-          >
-            Rematch
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function BattleArena({
-  roomCode,
-  isHost,
-  userId,
-  username,
-  opponentUsername = 'Opponent',
-}: BattleArenaProps) {
-  const {
-    gameState,
-    connected,
-    error,
-    countdown,
-    handleKeystroke,
-    handleReady,
-    startCountdown,
-    retryConnection,
-    opponentUsername: hookOpponentUsername,
-  } = useBattle({
-    roomCode,
-    isHost,
-    userId,
-    username,
-    onGameEnd: (won, wpm, accuracy, duration) => {
-      void recordMatch(won, wpm, accuracy, duration, opponentUsername);
-    },
-  });
-
-  const oppName = hookOpponentUsername || opponentUsername || 'Opponent';
-
-  useEffect(() => {
-    if (isHost && gameState?.status === 'waiting' && gameState.myState.isReady && gameState.opponentState?.isReady) {
-      startCountdown();
+    async function copyInvite(value: string, label: string) {
+        try {
+            await navigator.clipboard.writeText(value);
+            setCopyMessage(label + ' copied. Send it to your opponent.');
+        } catch {
+            setCopyMessage('Copy unavailable. Select the code or invitation link below and copy it manually.');
+        }
     }
-  }, [gameState, isHost, startCountdown]);
 
-  if (!gameState) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[var(--primary)] border-t-transparent mx-auto mb-4" />
-          <p className="text-[var(--muted-foreground)]">Connecting...</p>
+        <div className="app-shell">
+            <GameHeader active="battle" />
+            <main id="main" className="page-container battle-page">
+                <div className="battle-topline">
+                    <div><p className="eyebrow">PRIVATE DUEL / {room_code}</p><h1>{waiting ? 'Prepare for deployment.' : game_state?.status === 'finished' ? 'Battle complete.' : 'The arena is yours.'}</h1></div>
+                    <Status tone={connected ? 'good' : error ? 'danger' : 'neutral'}>{connected ? 'Opponent connected' : error ? 'Connection interrupted' : 'Waiting for connection'}</Status>
+                </div>
+                {error && <div className="form-error" role="alert">{error} {!connected && <Button variant="secondary" onClick={retryConnection}>Retry connection</Button>}</div>}
+                {!game_state ? (
+                    <Panel className="empty-state"><div className="loading-line" /><h2>{error ? 'Unable to enter the arena' : 'Preparing your arena…'}</h2><p className="muted">Your battle will appear here once the room is ready.</p><Link href="/" className="button button-secondary">Back to lobby</Link></Panel>
+                ) : waiting ? (
+                    <>
+                        <div className="lobby-grid">
+                            <Panel className="lobby-preview">
+                                <div className="panel-topline"><span className="eyebrow">COMBATANTS</span><span className="micro-label">1V1 ARENA</span></div>
+                                <ArenaArtwork />
+                                <div style={{ padding: '0 22px 14px' }}>
+                                    <div className="player-slot"><div><strong>{username}</strong><small>YOU · {is_host ? 'ROOM HOST' : 'CHALLENGER'}</small></div><Status tone={game_state.myState.isReady ? 'good' : 'neutral'}>{game_state.myState.isReady ? 'Ready' : 'Not ready'}</Status></div>
+                                    <div className="player-slot"><div><strong>{connected || opponent_state ? opponent_name : 'Opponent slot open'}</strong><small>{connected ? 'CONNECTED' : 'AWAITING CONNECTION'}</small></div><Status tone={opponent_state?.isReady ? 'good' : 'neutral'}>{opponent_state?.isReady ? 'Ready' : connected ? 'Not ready' : 'Waiting'}</Status></div>
+                                </div>
+                            </Panel>
+                            <Panel className="lobby-controls">
+                                <h2>Bring your rival.</h2><p className="muted">Share this invite with a friend. Your duel begins when you both select Ready.</p>
+                                <div className="invite-row"><Field id="room-code" label="Battle code" value={room_code} readOnly onFocus={(event) => event.target.select()} /><Button variant="secondary" onClick={() => void copyInvite(room_code, 'Battle code')}>Copy code</Button></div>
+                                <Button variant="secondary" className="full-width" onClick={() => void copyInvite(invite_url, 'Invitation link')} disabled={!invite_url}>Copy invitation link<span aria-hidden="true">↗</span></Button>
+                                <p className="copy-note" role="status">{copy_message}</p>
+                                <p className="invite-link">{invite_url}</p>
+                                <div className="divider"><span>PRE-FLIGHT CHECK</span></div>
+                                <Button className="full-width" onClick={handleReady} disabled={!connected || game_state.myState.isReady}>{game_state.myState.isReady ? 'Ready · Waiting for your rival' : 'Ready to battle'}<span aria-hidden="true">→</span></Button>
+                                <p className="lobby-hint">Type fast, stay accurate. Finish the quote first or reduce your opponent’s health to zero. Wrong keys lower accuracy; type the correct key to move on.</p>
+                            </Panel>
+                        </div>
+                        <Link href="/" className="text-link">← Leave room and return to lobby</Link>
+                    </>
+                ) : (
+                    <>
+                        <HealthBars myHp={game_state.myState.hp} opponentHp={opponent_state?.hp ?? 100} myName={username} opponentName={opponent_name} />
+                        <BattleScene myHp={game_state.myState.hp} opponentHp={opponent_state?.hp ?? 100} myWpm={game_state.myState.wpm} opponentWpm={opponent_state?.wpm ?? 0} myPosition={game_state.myState.position} opponentPosition={opponent_state?.position ?? 0} textLength={game_state.quote?.text.length ?? 1} isWinning={game_state.winner ? game_state.winner === 'me' : game_state.myState.hp > (opponent_state?.hp ?? 100)} status={game_state.status} />
+                        {game_state.status === 'countdown' && <div className="countdown-banner" role="status"><strong>{countdown || 3}</strong><span>Hands on the keyboard. Your duel is about to begin.</span></div>}
+                        <TypingInterface gameState={game_state} onKeystroke={handleKeystroke} disabled={!connected} />
+                        {opponent_state && <div className="opponent-progress"><span>OPPONENT</span><strong>{opponent_name}</strong><progress aria-label="Opponent quote progress" value={opponent_state.position} max={game_state.quote?.text.length || 1} /><span>{Math.round(opponent_state.wpm)} WPM · {Math.round(opponent_state.accuracy * 100)}% accuracy</span></div>}
+                    </>
+                )}
+                {game_state?.status === 'finished' && (
+                    <GameDialog title={game_state.winner === 'me' ? 'Victory is yours.' : 'A battle. Not the war.'}>
+                        <p className={'result-mark' + (game_state.winner === 'me' ? '' : ' defeat')}>{game_state.winner === 'me' ? 'VICTORY' : 'DEFEAT'}</p>
+                        <p className="muted">{game_state.winner === 'me' ? 'You defeated ' + opponent_name + '.' : opponent_name + ' won this duel. Your next battle awaits.'}</p>
+                        <div className="result-metrics"><Metric label="Your WPM" value={Math.round(game_state.myState.wpm)} accent /><Metric label="Your accuracy" value={Math.round(game_state.myState.accuracy * 100) + '%'} /></div>
+                        {save_error && <p role="alert" className="form-error">{save_error}</p>}
+                        <div className="dialog-actions"><Link href="/" className="button button-primary">Back to lobby</Link><Link href="/stats" className="button button-secondary">Combat record</Link></div>
+                    </GameDialog>
+                )}
+            </main>
+            <GameFooter />
         </div>
-      </div>
     );
-  }
-
-  return (
-    <div className="flex-1 flex flex-col relative min-h-0">
-      <header className="border-b border-[var(--border)] px-6 py-4 flex-shrink-0">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-[var(--muted-foreground)]">Battle Code:</span>
-            <code className="font-mono text-lg bg-[var(--muted)] px-3 py-1 rounded border border-[var(--border)]">
-              {roomCode}
-            </code>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-[var(--primary)]' : 'bg-[var(--danger)]'}`} />
-            <span className="text-sm text-[var(--muted-foreground)]">
-              {connected ? 'Connected' : 'Connecting...'}
-            </span>
-          </div>
-        </div>
-      </header>
-
-      {error && (
-        <div className="mx-6 mt-4 p-3 bg-[var(--danger)]/20 border border-[var(--danger)]/50 rounded-lg text-sm text-[var(--danger)] flex items-center justify-between gap-3">
-          <span>{error}</span>
-          {!connected && (
-            <button
-              type="button"
-              onClick={retryConnection}
-              className="shrink-0 rounded-md border border-[var(--danger)]/50 px-3 py-1 font-medium hover:bg-[var(--danger)]/10"
-            >
-              Retry
-            </button>
-          )}
-        </div>
-      )}
-
-      <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 overflow-y-auto">
-        <HealthBars
-          myHp={gameState.myState.hp}
-          opponentHp={gameState.opponentState?.hp || 100}
-          myName={username}
-          opponentName={oppName}
-        />
-
-        <BattleScene
-          myHp={gameState.myState.hp}
-          opponentHp={gameState.opponentState?.hp || 100}
-          myWpm={gameState.myState.wpm}
-          opponentWpm={gameState.opponentState?.wpm || 0}
-          myPosition={gameState.myState.position}
-          opponentPosition={gameState.opponentState?.position || 0}
-          textLength={gameState.quote?.text.length || 1}
-          isWinning={gameState.myState.hp > (gameState.opponentState?.hp || 100)}
-          status={gameState.status}
-        />
-
-        {countdown > 0 && (
-          <div className="mb-8 text-center" role="status" aria-live="polite">
-            <div className="text-8xl md:text-[120px] font-bold font-mono text-[var(--primary)] animate-pulse">
-              {countdown}
-            </div>
-          </div>
-        )}
-
-        {gameState.quote && (
-          <QuoteDisplay
-            quote={gameState.quote}
-            position={gameState.myState.position}
-            opponentPosition={gameState.opponentState?.position}
-          />
-        )}
-
-        <TypingInterface
-          gameState={gameState}
-          onKeystroke={handleKeystroke}
-          onReady={handleReady}
-          onStartCountdown={startCountdown}
-          disabled={!connected}
-        />
-
-        {gameState.opponentState && (
-          <div className="mt-6 p-4 bg-[var(--card)] rounded-xl border border-[var(--border)] w-full max-w-3xl">
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-medium">{oppName}</span>
-              <span className="text-sm text-[var(--muted-foreground)]">
-                {Math.round(gameState.opponentState.wpm)} WPM · {Math.round(gameState.opponentState.accuracy * 100)}%
-              </span>
-            </div>
-            <div className="h-2 bg-[var(--muted)] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-[var(--danger)] transition-all duration-300"
-                style={{ width: `${Math.min(100, (gameState.opponentState.position / (gameState.quote?.text.length || 1)) * 100)}%` }}
-              />
-            </div>
-          </div>
-        )}
-      </main>
-
-      {gameState.status === 'finished' && <ResultModal gameState={gameState} oppName={oppName} />}
-    </div>
-  );
 }

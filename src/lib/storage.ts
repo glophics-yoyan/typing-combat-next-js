@@ -49,7 +49,7 @@ function getDB(): Promise<IDBPDatabase<StatsDB>> {
 export async function getLocalStats(): Promise<LocalStats> {
   const db = await getDB();
   const stats = await db.get(STORE_NAME, 'main');
-  return stats || DEFAULT_STATS;
+  return stats || { ...DEFAULT_STATS, settings: { ...DEFAULT_STATS.settings }, recentMatches: [] };
 }
 
 export async function saveLocalStats(stats: LocalStats): Promise<void> {
@@ -116,6 +116,6 @@ export async function resetSessionStats(): Promise<LocalStats> {
 }
 
 export async function clearAllStats(): Promise<void> {
-  const db = await getDB();
-  await db.clear(STORE_NAME);
+    const stats = await getLocalStats();
+    await saveLocalStats({ ...DEFAULT_STATS, settings: { ...stats.settings }, recentMatches: [] });
 }

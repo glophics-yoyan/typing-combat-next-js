@@ -1,46 +1,40 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import type { Quote } from '@/types';
 
 interface QuoteDisplayProps {
-  quote: Quote;
-  position: number;
-  opponentPosition?: number;
+    quote: Quote;
+    position: number;
 }
 
-export function QuoteDisplay({ quote, position, opponentPosition }: QuoteDisplayProps) {
-  const chars = quote.text.split('');
-  const visible_start = Math.max(0, position - 32);
-  const visible_chars = chars.slice(visible_start, visible_start + 180);
+export function QuoteDisplay({ quote, position }: QuoteDisplayProps) {
+    const viewport_ref = useRef<HTMLDivElement>(null);
+    const current_ref = useRef<HTMLSpanElement>(null);
 
-  return (
-    <div className="font-mono text-lg md:text-xl leading-relaxed max-w-3xl h-14 md:h-16 overflow-hidden mx-auto px-4">
-      {visible_start > 0 && <span className="text-[var(--muted-foreground)]">… </span>}
-      {visible_chars.map((char, visible_index) => {
-        const index = visible_start + visible_index;
-        let className = 'quote-char px-0.5';
-        if (index < position) {
-          className += ' correct';
-        } else if (index === position) {
-          className += ' current';
-        } else {
-          className += ' pending';
+    useEffect(() => {
+        function keepCurrentVisible() {
+            const viewport = viewport_ref.current;
+            const current = current_ref.current;
+            if (!viewport || !current) return;
+            const target_top = current.offsetTop;
+            if (target_top < viewport.scrollTop || target_top + current.offsetHeight > viewport.scrollTop + viewport.clientHeight - 16) {
+                viewport.scrollTop = Math.max(0, target_top - 16);
+            }
         }
+        keepCurrentVisible();
+        const observer = new ResizeObserver(keepCurrentVisible);
+        if (viewport_ref.current) observer.observe(viewport_ref.current);
+        return () => observer.disconnect();
+    }, [position, quote.text]);
 
-        const opponentHere = opponentPosition !== undefined && opponentPosition > index;
-        if (opponentHere) {
-          className += ' relative';
-        }
-
-        return (
-          <span key={index} className={className}>
-            {char === ' ' ? ' ' : char}
-            {opponentHere && (
-              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-[var(--danger)] rounded-full animate-pulse" />
-            )}
-          </span>
-        );
-      })}
-    </div>
-  );
+    return (
+        <div ref={viewport_ref} className="quote-window" tabIndex={0} role="region" aria-label="Battle quote">
+            <p className="quote-text">
+                {quote.text.split('').map((char, index) => (
+                    <span key={index} ref={index === position ? current_ref : undefined} className={'quote-char ' + (index < position ? 'correct' : index === position ? 'current' : 'pending')}>{char}</span>
+                ))}
+            </p>
+        </div>
+    );
 }

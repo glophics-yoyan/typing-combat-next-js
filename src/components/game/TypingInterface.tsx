@@ -1,118 +1,81 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { GameState } from '@/types';
+import { Metric, Panel } from '@/components/game/GameUI';
+import { QuoteDisplay } from '@/components/game/QuoteDisplay';
 
 interface TypingInterfaceProps {
-  gameState: GameState | null;
-  onKeystroke: (char: string, isCorrect: boolean) => void;
-  onReady: () => void;
-  onStartCountdown: () => void;
-  disabled?: boolean;
+    gameState: GameState;
+    onKeystroke: (char: string, is_correct: boolean) => void;
+    disabled?: boolean;
 }
 
-export function TypingInterface({
-  gameState,
-  onKeystroke,
-  onReady,
-  onStartCountdown,
-  disabled = false,
-}: TypingInterfaceProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+export function TypingInterface({ gameState: game_state, onKeystroke, disabled = false }: TypingInterfaceProps) {
+    const input_ref = useRef<HTMLInputElement>(null);
+    const [has_mistake, setHasMistake] = useState(false);
+    const [focused, setFocused] = useState(false);
+    const can_type = game_state.status === 'active' && !disabled;
+    const quote = game_state.quote;
 
-  const handleInput = useCallback(
-    (e: React.FormEvent<HTMLInputElement>) => {
-      if (disabled || !gameState || !gameState.quote) return;
+    useEffect(() => {
+        if (can_type) input_ref.current?.focus({ preventScroll: true });
+    }, [can_type]);
 
-      const value = e.currentTarget.value;
-      const quote = gameState.quote.text;
+    useEffect(() => {
+        const viewport = window.visualViewport;
+        function revealInput() {
+            if (document.activeElement === input_ref.current) input_ref.current?.scrollIntoView({ block: 'nearest' });
+        }
+        viewport?.addEventListener('resize', revealInput);
+        return () => viewport?.removeEventListener('resize', revealInput);
+    }, []);
 
-      if (value.length > 0) {
-        const newChar = value[value.length - 1];
-        const expectedChar = quote[gameState.myState.position];
-        const isCorrect = newChar === expectedChar;
-        onKeystroke(newChar, isCorrect);
-      }
+    if (!quote) return null;
+    const expected_char = quote.text[game_state.myState.position];
+    const feedback = !can_type
+        ? disabled ? 'Waiting for the connection. Typing is temporarily unavailable.' : 'Get ready. Your typing field activates when the countdown ends.'
+        : has_mistake ? 'Incorrect key. Type ' + (expected_char === ' ' ? 'a space' : '“' + expected_char + '”') + ' to continue.'
+        : focused ? 'Typing armed · Match the highlighted character. No backspace needed.' : 'Click the typing field or press Tab to resume.';
 
-      e.currentTarget.value = '';
-    },
-    [gameState, onKeystroke, disabled]
-  );
-
-  useEffect(() => {
-    if (gameState?.status === 'active') {
-      inputRef.current?.focus();
-    }
-  }, [gameState?.status]);
-
-  if (!gameState || !gameState.quote) return null;
-
-  const canType = gameState.status === 'active';
-  const showReady = gameState.status === 'waiting' && !gameState.myState.isReady;
-
-  return (
-    <div className="w-full max-w-3xl mx-auto px-4">
-      {showReady && (
-        <div className="mb-6 text-center">
-          <button
-            onClick={onReady}
-            className="px-8 py-3 bg-[var(--primary)] text-[var(--background)] font-bold rounded-lg hover:opacity-90 transition-opacity text-lg"
-          >
-            Ready
-          </button>
-          <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-            Waiting for opponent...
-          </p>
-        </div>
-      )}
-
-      {gameState.status === 'countdown' && (
-        <div className="mb-6 text-center" role="status" aria-live="polite">
-          <div className="text-6xl font-bold font-mono text-[var(--primary)] animate-pulse">
-            {gameState.quote.text.slice(0, 3)}...
-          </div>
-        </div>
-      )}
-
-      {canType && (
-        <div className="mb-6">
-          <label htmlFor="typing-input" className="sr-only">
-            Type the quote above
-          </label>
-          <input
-            ref={inputRef}
-            id="typing-input"
-            type="text"
-            onInput={handleInput}
-            autoComplete="off"
-            spellCheck={false}
-            className="w-full px-4 py-3 bg-[var(--muted)] border border-[var(--border)] rounded-lg text-white placeholder-[var(--muted-foreground)] focus:border-[var(--primary)] focus:outline-none text-lg font-mono"
-            placeholder="Start typing..."
-            aria-label="Type the quote"
-          />
-        </div>
-      )}
-
-      <div className="grid grid-cols-3 gap-4 text-center text-sm">
-        <div className="p-3 bg-[var(--card)] rounded-lg border border-[var(--border)]">
-          <p className="text-[var(--muted-foreground)]">WPM</p>
-          <p className="text-2xl font-bold font-mono text-[var(--primary)]">
-            {Math.round(gameState.myState.wpm)}
-          </p>
-        </div>
-        <div className="p-3 bg-[var(--card)] rounded-lg border border-[var(--border)]">
-          <p className="text-[var(--muted-foreground)]">Accuracy</p>
-          <p className="text-2xl font-bold font-mono text-[var(--primary)]">
-            {Math.round(gameState.myState.accuracy * 100)}%
-          </p>
-        </div>
-        <div className="p-3 bg-[var(--card)] rounded-lg border border-[var(--border)]">
-          <p className="text-[var(--muted-foreground)]">Progress</p>
-          <p className="text-2xl font-bold font-mono text-[var(--primary)]">
-            {Math.round((gameState.myState.position / gameState.quote.text.length) * 100)}%
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+    return (
+        <Panel className={'typing-panel' + (has_mistake ? ' has-mistake' : '')}>
+            <div className="panel-topline"><span className="eyebrow">TYPE TO ATTACK</span><span className="micro-label">PRECISION = POWER</span></div>
+            <QuoteDisplay quote={quote} position={game_state.myState.position} />
+            <div className="field typing-entry">
+                <label htmlFor="typing-input">Your typing field</label>
+                <input
+                    ref={input_ref}
+                    id="typing-input"
+                    type="text"
+                    disabled={!can_type}
+                    onInput={(event) => {
+                        if (!can_type || (event.nativeEvent as InputEvent).isComposing) return;
+                        const value = event.currentTarget.value;
+                        event.currentTarget.value = '';
+                        if (!value || expected_char === undefined) return;
+                        const char = value[value.length - 1];
+                        const is_correct = char === expected_char;
+                        setHasMistake(!is_correct);
+                        onKeystroke(char, is_correct);
+                    }}
+                    onPaste={(event) => event.preventDefault()}
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    placeholder={can_type ? 'Type the highlighted character…' : 'Stand by…'}
+                    aria-describedby="typing-feedback"
+                />
+            </div>
+            <p id="typing-feedback" className="typing-feedback" role="status">{feedback}</p>
+            <div className="combat-metrics">
+                <Metric label="Words per minute" value={Math.round(game_state.myState.wpm)} accent />
+                <Metric label="Accuracy" value={Math.round(game_state.myState.accuracy * 100) + '%'} />
+                <Metric label="Quote completed" value={Math.round(game_state.myState.position / Math.max(1, quote.text.length) * 100) + '%'} />
+            </div>
+        </Panel>
+    );
 }

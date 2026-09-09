@@ -92,8 +92,8 @@ export function applyDamage(gameState: GameState, dt: number): GameState {
   const myDamage = calculateDamage(myState.wpm, myState.accuracy) * (dt / 1000);
   const opponentDamage = calculateDamage(opponentState.wpm, opponentState.accuracy) * (dt / 1000);
 
-  let newMyHp = Math.max(0, myState.hp - opponentDamage);
-  let newOpponentHp = Math.max(0, opponentState.hp - myDamage);
+  const newMyHp = Math.max(0, myState.hp - opponentDamage);
+  const newOpponentHp = Math.max(0, opponentState.hp - myDamage);
 
   let winner: GameState['winner'] = null;
   let status: GameState['status'] = gameState.status;

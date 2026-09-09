@@ -1,233 +1,85 @@
 'use client';
 
+import { useState } from 'react';
+import Link from 'next/link';
 import { useLocalStats } from '@/hooks/useLocalStats';
 import { clearAllStats } from '@/lib/storage';
-import Link from 'next/link';
-import type { LocalStats } from '@/types';
+import { Button, GameDialog, GameFooter, GameHeader, Metric, Panel } from '@/components/game/GameUI';
 
 export default function StatsPage() {
-  const { stats, loading, updateSettings } = useLocalStats();
+    const { stats, loading, refresh } = useLocalStats();
+    const [confirm_reset, setConfirmReset] = useState(false);
+    const [resetting, setResetting] = useState(false);
+    const [reset_error, setResetError] = useState('');
+    const win_rate = stats && stats.totalMatches > 0 ? Math.round(stats.wins / stats.totalMatches * 100) : 0;
+    const average_wpm = stats && stats.totalTimeMs > 0 ? Math.round(stats.totalKeystrokes / 5 / (stats.totalTimeMs / 60000)) : 0;
 
-  if (loading) {
+    async function resetStats() {
+        setResetting(true);
+        setResetError('');
+        try {
+            await clearAllStats();
+            await refresh();
+            setConfirmReset(false);
+        } catch {
+            setResetError('Unable to reset your record. Please try again.');
+        } finally {
+            setResetting(false);
+        }
+    }
+
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[var(--primary)] border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (!stats) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--background)] px-4">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold mb-4">No stats yet</h1>
-          <p className="text-[var(--muted-foreground)] mb-6">Play some battles to see your stats!</p>
-          <Link href="/" className="text-[var(--primary)] hover:underline">
-            Play Now
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const winRate = stats.totalMatches > 0 ? Math.round((stats.wins / stats.totalMatches) * 100) : 0;
-  const avgWpm = stats.totalMatches > 0 ? Math.round(stats.totalKeystrokes / 5 / (stats.totalTimeMs / 60000)) : 0;
-
-  return (
-    <div className="min-h-screen bg-[var(--background)]">
-      <header className="border-b border-[var(--border)] px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-[var(--primary)] font-mono">TypeRacer Combat</h1>
-          <Link href="/" className="text-sm text-[var(--muted-foreground)] hover:text-white transition-colors">
-            Play
-          </Link>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 py-12">
-        <h2 className="text-3xl font-bold mb-8">Your Statistics</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Total Matches" value={stats.totalMatches} icon="🎮" />
-          <StatCard label="Wins" value={stats.wins} color="text-[var(--primary)]" icon="🏆" />
-          <StatCard label="Losses" value={stats.losses} color="text-[var(--danger)]" icon="💀" />
-          <StatCard label="Win Rate" value={`${winRate}%`} icon="📊" />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <StatCard label="Best WPM" value={stats.bestWpm} icon="⚡" />
-          <StatCard label="Best Accuracy" value={`${Math.round(stats.bestAccuracy * 100)}%`} icon="🎯" />
-          <StatCard label="Avg WPM" value={avgWpm} icon="📈" />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <StatCard label="Session Matches" value={stats.sessionMatches} icon="🔄" />
-          <StatCard label="Session Wins" value={stats.sessionWins} color="text-[var(--primary)]" icon="✨" />
-        </div>
-
-        <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-6 mb-8">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <svg className="w-5 h-5 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-            </svg>
-            Recent Matches
-          </h3>
-
-          {stats.recentMatches.length === 0 ? (
-            <p className="text-[var(--muted-foreground)] text-center py-8">No matches played yet</p>
-          ) : (
-            <div className="space-y-3">
-              {stats.recentMatches.map((match) => (
-                <div
-                  key={match.id}
-                  className="flex items-center justify-between p-3 bg-[var(--muted)] rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                        match.won ? 'bg-[var(--primary)]/20 text-[var(--primary)]' : 'bg-[var(--danger)]/20 text-[var(--danger)]'
-                      }`}
-                    >
-                      {match.won ? 'W' : 'L'}
-                    </div>
-                    <div>
-                      <p className="font-medium">{match.opponentName}</p>
-                      <p className="text-sm text-[var(--muted-foreground)]">
-                        {new Date(match.playedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-mono font-bold text-lg">
-                      {Math.round(match.wpm)} WPM
-                    </p>
-                    <p className="text-sm text-[var(--muted-foreground)]">
-                      {Math.round(match.accuracy * 100)}% • {formatDuration(match.durationMs)}
-                    </p>
-                  </div>
+        <div className="app-shell">
+            <GameHeader active="stats" />
+            <main id="main" className="page-container">
+                <div className="stats-heading">
+                    <div><p className="eyebrow">PLAYER INTELLIGENCE</p><h1>Your combat record.</h1><p className="muted">Every duel is a chance to get sharper.</p></div>
+                    <Link href="/" className="button button-primary">Enter the arena <span aria-hidden="true">↗</span></Link>
                 </div>
-              ))}
-            </div>
-          )}
+                {loading ? <Panel className="empty-state"><div className="loading-line" /><p className="muted" role="status">Loading your combat record…</p></Panel> : !stats ? <Panel className="empty-state"><h2>Record unavailable</h2><p className="muted">Check that your browser allows site storage, then refresh this page.</p></Panel> : (
+                    <>
+                        <Panel className="stats-summary">
+                            <Metric label="Battles played" value={stats.totalMatches} />
+                            <Metric label="Victories" value={stats.wins} accent />
+                            <Metric label="Win rate" value={win_rate + '%'} />
+                            <Metric label="Best WPM" value={Math.round(stats.bestWpm)} />
+                        </Panel>
+                        <div className="stats-grid">
+                            <Panel className="history-panel">
+                                <div className="section-heading"><h2>Battle history</h2><span className="micro-label">LAST {stats.recentMatches.length} DUELS</span></div>
+                                {stats.recentMatches.length === 0 ? (
+                                    <div className="empty-state"><span className="empty-symbol" aria-hidden="true">[ — ]</span><h2>A clean slate. A new challenger.</h2><p className="muted">Your battles will appear here.<br />Invite a friend and make your first mark.</p><Link href="/" className="button button-secondary">Play your first battle</Link></div>
+                                ) : stats.recentMatches.map((match) => (
+                                    <article className="match-row" key={match.id}>
+                                        <span className={'match-badge' + (match.won ? '' : ' loss')} aria-label={match.won ? 'Victory' : 'Defeat'}>{match.won ? 'W' : 'L'}</span>
+                                        <div><strong>vs. {match.opponentName}</strong><small>{new Date(match.playedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} · {formatDuration(match.durationMs)}</small></div>
+                                        <div className="match-score"><strong>{Math.round(match.wpm)} WPM</strong><small>{Math.round(match.accuracy * 100)}% accuracy</small></div>
+                                    </article>
+                                ))}
+                            </Panel>
+                            <aside className="stats-sidebar">
+                                <Panel><h2>Performance</h2><div className="detail-row"><span>Average speed</span><strong>{average_wpm} WPM</strong></div><div className="detail-row"><span>Best accuracy</span><strong>{Math.round(stats.bestAccuracy * 100)}%</strong></div><div className="detail-row"><span>Defeats</span><strong>{stats.losses}</strong></div><div className="detail-row"><span>Time in combat</span><strong>{formatDuration(stats.totalTimeMs)}</strong></div></Panel>
+                                <Panel><h2>Session record</h2><div className="detail-row"><span>Battles</span><strong>{stats.sessionMatches}</strong></div><div className="detail-row"><span>Victories</span><strong>{stats.sessionWins}</strong></div></Panel>
+                                <Panel><h2>Your data</h2><p className="muted" style={{ fontSize: 12 }}>Your combat record is saved in this browser, on this device.</p><Button variant="danger" style={{ marginTop: 20, width: '100%' }} onClick={() => setConfirmReset(true)}>Reset combat record</Button></Panel>
+                            </aside>
+                        </div>
+                    </>
+                )}
+                {confirm_reset && (
+                    <GameDialog title="Reset your combat record?" onClose={() => { if (!resetting) setConfirmReset(false); }}>
+                        <p className="muted">This permanently removes all saved match history and statistics from this browser. Your player name and preferences will stay.</p>
+                        {reset_error && <p className="form-error" role="alert">{reset_error}</p>}
+                        <div className="dialog-actions"><Button variant="secondary" autoFocus disabled={resetting} onClick={() => setConfirmReset(false)}>Keep my record</Button><Button variant="danger" disabled={resetting} onClick={() => void resetStats()}>{resetting ? 'Resetting…' : 'Reset record'}</Button></div>
+                    </GameDialog>
+                )}
+            </main>
+            <GameFooter />
         </div>
-
-        <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <svg className="w-5 h-5 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Settings
-          </h3>
-
-          <div className="space-y-4">
-            <SettingToggle
-              label="Sound Effects"
-              checked={stats.settings.soundEnabled}
-              onChange={(soundEnabled) => void updateSettings({ soundEnabled })}
-            />
-            <SettingToggle
-              label="Particle Effects"
-              checked={stats.settings.particlesEnabled}
-              onChange={(particlesEnabled) => void updateSettings({ particlesEnabled })}
-            />
-            <div>
-              <label className="block text-sm text-[var(--muted-foreground)] mb-2">Theme</label>
-              <select
-                defaultValue={stats.settings.theme}
-                className="w-full px-4 py-3 bg-[var(--muted)] border border-[var(--border)] rounded-lg text-white focus:border-[var(--primary)] focus:outline-none"
-                onChange={(event) => void updateSettings({ theme: event.target.value as LocalStats['settings']['theme'] })}
-              >
-                <option value="system">System</option>
-                <option value="dark">Dark</option>
-                <option value="light">Light</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm text-[var(--muted-foreground)] mb-2">Quote Difficulty</label>
-              <select
-                defaultValue={stats.settings.quoteDifficulty}
-                className="w-full px-4 py-3 bg-[var(--muted)] border border-[var(--border)] rounded-lg text-white focus:border-[var(--primary)] focus:outline-none"
-                onChange={(event) => void updateSettings({ quoteDifficulty: Number(event.target.value) as LocalStats['settings']['quoteDifficulty'] })}
-              >
-                <option value="1">Easy</option>
-                <option value="2">Medium</option>
-                <option value="3">Hard</option>
-                <option value="4">Expert</option>
-                <option value="5">Insane</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={() => {
-            if (confirm('Reset all stats? This cannot be undone.')) {
-              void clearAllStats().then(() => window.location.reload());
-            }
-          }}
-          className="w-full mt-6 py-3 px-4 border border-[var(--danger)] text-[var(--danger)] rounded-lg hover:bg-[var(--danger)]/10 transition-colors"
-        >
-          Reset All Stats
-        </button>
-      </main>
-    </div>
-  );
+    );
 }
 
-function StatCard({
-  label,
-  value,
-  color = 'text-white',
-  icon,
-}: {
-  label: string;
-  value: string | number;
-  color?: string;
-  icon?: string;
-}) {
-  return (
-    <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-6 text-center">
-      {icon && <span className="text-3xl mb-2 block">{icon}</span>}
-      <p className={`text-3xl font-bold font-mono ${color}`}>{value}</p>
-      <p className="text-sm text-[var(--muted-foreground)] mt-1">{label}</p>
-    </div>
-  );
-}
-
-function SettingToggle({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <label className="flex items-center justify-between cursor-pointer">
-      <span className="font-medium">{label}</span>
-      <button
-        onClick={() => onChange(!checked)}
-        className={`relative w-12 h-6 rounded-full transition-colors ${
-          checked ? 'bg-[var(--primary)]' : 'bg-[var(--muted)]'
-        }`}
-        aria-pressed={checked}
-      >
-        <span
-          className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-            checked ? 'translate-x-full' : ''
-          }`}
-        />
-      </button>
-    </label>
-  );
-}
-
-function formatDuration(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  if (minutes > 0) return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  return `${remainingSeconds}s`;
+function formatDuration(duration_ms: number) {
+    const seconds = Math.floor(duration_ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    return minutes > 0 ? minutes + 'm ' + seconds % 60 + 's' : seconds + 's';
 }

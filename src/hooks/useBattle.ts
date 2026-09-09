@@ -7,6 +7,7 @@ import {
   processKeystroke,
   applyOpponentState,
   applyDamage,
+  checkQuoteComplete,
   startGame,
   beginActiveGame,
   setReady,
@@ -82,8 +83,8 @@ export function useBattle({
       case 'finish': {
         const { winner } = message.payload as { winner: 'me' | 'opponent' };
         setGameState((prev: GameState | null) => {
-          if (!prev) return prev;
-          return { ...prev, status: 'finished', winner, endTime: Date.now() };
+          if (!prev || prev.status === 'finished') return prev;
+          return { ...prev, status: 'finished', winner: winner === 'me' ? 'opponent' : 'me', endTime: Date.now() };
         });
         break;
       }
@@ -243,7 +244,8 @@ export function useBattle({
       }
 
       if (isGameActive(next)) {
-        next = applyDamage(next, dt);
+        next = checkQuoteComplete(next);
+        if (isGameActive(next)) next = applyDamage(next, dt);
       }
 
       if (isGameFinished(next) && prev.status !== 'finished') {
@@ -322,6 +324,18 @@ export function useBattle({
     setError('Retrying direct connection...');
     setConnectionAttempt((current_attempt) => current_attempt + 1);
   }, []);
+
+  useEffect(() => {
+    if (!connected) return;
+    let cancelled = false;
+    void fetchRoomState(roomCode).then((room_data) => {
+      const opponent = room_data?.players.find((player) => player.userId !== userId);
+      if (!cancelled && opponent) setOpponentUsername(opponent.username);
+    }).catch(() => {
+      // Keep the existing display name if the room lookup is temporarily unavailable.
+    });
+    return () => { cancelled = true; };
+  }, [connected, roomCode, userId]);
 
   return {
     gameState,

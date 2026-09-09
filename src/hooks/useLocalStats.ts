@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { LocalStats } from '@/types';
-import { getLocalStats, saveLocalStats, recordMatch, updateSettings, resetSessionStats } from '@/lib/storage';
+import { getLocalStats, recordMatch, updateSettings, resetSessionStats } from '@/lib/storage';
 
 export function useLocalStats() {
   const [stats, setStats] = useState<LocalStats | null>(null);
@@ -10,9 +10,14 @@ export function useLocalStats() {
 
   useEffect(() => {
     const load = async () => {
-      const data = await getLocalStats();
-      setStats(data);
-      setLoading(false);
+      try {
+        const data = await getLocalStats();
+        setStats(data);
+      } catch {
+        setStats(null);
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, []);

@@ -1,208 +1,125 @@
 'use client';
 
-import { Canvas } from '@react-three/fiber';
-import { useFrame } from '@react-three/fiber';
-import { useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import * as THREE from 'three';
+import { ArenaArtwork } from '@/components/game/GameUI';
 
 interface FighterProps {
-  side: 'left' | 'right';
-  hp: number;
-  wpm: number;
-  position: [number, number, number];
-  isDominating: boolean;
-  status: string;
+    side: 'left' | 'right';
+    hp: number;
+    wpm: number;
+    position: [number, number, number];
+    status: string;
 }
 
-function Fighter({ side, hp, wpm, position, isDominating, status }: FighterProps) {
-  const fighter_ref = useRef<THREE.Group>(null);
-  const aura_ref = useRef<THREE.Mesh>(null);
-  const color = side === 'left' ? '#00ff88' : '#ff3366';
-  const is_hurt = hp <= 30;
-  const face_color = is_hurt ? '#ffb5a8' : isDominating ? '#fff0b0' : '#e9f1ff';
+function Fighter({ side, hp, wpm, position, status }: FighterProps) {
+    const fighter_ref = useRef<THREE.Group>(null);
+    const color = side === 'left' ? '#68e4ef' : '#ff857c';
+    const armor_color = hp <= 30 ? '#79525d' : '#57738b';
 
-  useFrame((state) => {
-    const time = state.clock.elapsedTime;
-    const speed = status === 'active' ? 2 + wpm / 45 : 1;
+    useFrame((state) => {
+        if (!fighter_ref.current) return;
+        const time = state.clock.elapsedTime;
+        fighter_ref.current.position.y = position[1] + Math.sin(time * (status === 'active' ? 2 + wpm / 80 : 1)) * 0.035;
+        fighter_ref.current.rotation.z = status === 'active' ? (side === 'left' ? -0.06 : 0.06) : 0;
+    });
 
-    if (fighter_ref.current) {
-      fighter_ref.current.position.y = position[1] + Math.sin(time * speed) * 0.08;
-      fighter_ref.current.rotation.z = (isDominating ? (side === 'left' ? 0.1 : -0.1) : 0) + Math.sin(time * speed * 0.5) * 0.02;
-    }
-    if (aura_ref.current) {
-      const aura_scale = 1 + Math.sin(time * speed * 1.5) * 0.1 + wpm / 500;
-      aura_ref.current.scale.setScalar(aura_scale);
-    }
-  });
-
-  return (
-    <group ref={fighter_ref} position={position} rotation={[0, side === 'left' ? -0.15 : 0.15, 0]}>
-      <pointLight color={color} intensity={0.8 + wpm / 80} distance={6} />
-      <mesh ref={aura_ref} position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.9, 1.12, 40]} />
-        <meshBasicMaterial color={color} transparent opacity={0.45} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh position={[0, 0.65, 0]} castShadow>
-        <capsuleGeometry args={[0.52, 0.8, 8, 20]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.25} roughness={0.35} />
-      </mesh>
-      <mesh position={[0, 1.6, 0.1]} castShadow>
-        <sphereGeometry args={[0.55, 24, 24]} />
-        <meshStandardMaterial color={face_color} roughness={0.7} />
-      </mesh>
-      <mesh position={[-0.2, 1.72, 0.58]}>
-        <sphereGeometry args={[0.09, 12, 12]} />
-        <meshBasicMaterial color="#11131d" />
-      </mesh>
-      <mesh position={[0.2, 1.72, 0.58]}>
-        <sphereGeometry args={[0.09, 12, 12]} />
-        <meshBasicMaterial color="#11131d" />
-      </mesh>
-      <mesh position={[0, 1.42, 0.58]} rotation={[0, 0, is_hurt ? Math.PI : 0]}>
-        <torusGeometry args={[0.16, 0.035, 8, 16, Math.PI]} />
-        <meshBasicMaterial color={isDominating ? color : '#2b2036'} />
-      </mesh>
-      <mesh position={[-0.2, 1.96, 0.58]} rotation={[0, 0, is_hurt ? 0.25 : -0.25]}>
-        <boxGeometry args={[0.26, 0.045, 0.04]} />
-        <meshBasicMaterial color="#262035" />
-      </mesh>
-      <mesh position={[0.2, 1.96, 0.58]} rotation={[0, 0, is_hurt ? -0.25 : 0.25]}>
-        <boxGeometry args={[0.26, 0.045, 0.04]} />
-        <meshBasicMaterial color="#262035" />
-      </mesh>
-    </group>
-  );
-}
-
-interface PowerEffectProps {
-  leftPosition: number;
-  rightPosition: number;
-  pressure: number;
-  status: string;
-}
-
-function PowerEffect({ leftPosition, rightPosition, pressure, status }: PowerEffectProps) {
-  const orb_ref = useRef<THREE.Mesh>(null);
-  const strength = Math.min(1, Math.abs(pressure));
-  const is_left_attacking = pressure >= 0;
-  const color = is_left_attacking ? '#00ff88' : '#ff3366';
-  const center = (leftPosition + rightPosition) / 2;
-  const distance = Math.max(1, Math.abs(rightPosition - leftPosition) - 1.3);
-
-  useFrame((state) => {
-    if (!orb_ref.current) return;
-    const time = state.clock.elapsedTime;
-    orb_ref.current.visible = status === 'active' && strength > 0.05;
-    orb_ref.current.position.x = center + Math.sin(time * 2.8) * distance * 0.35 * (is_left_attacking ? 1 : -1);
-    orb_ref.current.scale.setScalar(0.45 + strength * 0.55 + Math.sin(time * 10) * 0.08);
-  });
-
-  return (
-    <group>
-      {status === 'active' && strength > 0.05 && (
-        <mesh position={[center, 1.25, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.03 + strength * 0.06, 0.03 + strength * 0.06, distance, 10]} />
-          <meshBasicMaterial color={color} transparent opacity={0.6} />
-        </mesh>
-      )}
-      <mesh ref={orb_ref} position={[center, 1.25, 0]}>
-        <icosahedronGeometry args={[0.45, 2]} />
-        <meshBasicMaterial color={color} transparent opacity={0.9} />
-      </mesh>
-      <pointLight position={[center, 1.25, 0]} color={color} intensity={2 + strength * 3} distance={7} />
-    </group>
-  );
+    return (
+        <group ref={fighter_ref} position={position} rotation={[0, side === 'left' ? .25 : -.25, 0]}>
+            <pointLight color={color} intensity={1.5} distance={4} />
+            <mesh position={[0, -.65, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <ringGeometry args={[.85, .91, 48]} /><meshBasicMaterial color={color} transparent opacity={.65} side={THREE.DoubleSide} />
+            </mesh>
+            <mesh position={[0, .35, 0]}>
+                <boxGeometry args={[1, .9, .6]} /><meshStandardMaterial color={armor_color} metalness={.7} roughness={.35} />
+            </mesh>
+            <mesh position={[0, .42, .32]} rotation={[0, 0, Math.PI / 4]}>
+                <boxGeometry args={[.25, .25, .04]} /><meshStandardMaterial color={color} emissive={color} emissiveIntensity={1} />
+            </mesh>
+            <mesh position={[0, 1.15, 0]}>
+                <boxGeometry args={[.72, .65, .65]} /><meshStandardMaterial color="#465d70" metalness={.65} roughness={.3} />
+            </mesh>
+            <mesh position={[0, 1.17, .34]}>
+                <boxGeometry args={[.64, .13, .04]} /><meshBasicMaterial color={color} />
+            </mesh>
+            {[-1, 1].map((direction) => (
+                <group key={direction}>
+                    <mesh position={[direction * .69, .65, 0]} rotation={[0, 0, direction * .14]}>
+                        <boxGeometry args={[.35, .34, .73]} /><meshStandardMaterial color={color} metalness={.5} roughness={.4} />
+                    </mesh>
+                    <mesh position={[direction * .73, .1, 0]} rotation={[0, 0, direction * .12]}>
+                        <boxGeometry args={[.3, .65, .45]} /><meshStandardMaterial color={armor_color} metalness={.6} roughness={.4} />
+                    </mesh>
+                    <mesh position={[direction * .3, -.4, 0]}>
+                        <boxGeometry args={[.35, .65, .5]} /><meshStandardMaterial color="#2b3c50" metalness={.5} roughness={.5} />
+                    </mesh>
+                </group>
+            ))}
+        </group>
+    );
 }
 
 interface BattleSceneProps {
-  myHp: number;
-  opponentHp: number;
-  myWpm: number;
-  opponentWpm: number;
-  myPosition: number;
-  opponentPosition: number;
-  textLength: number;
-  isWinning: boolean;
-  status: string;
+    myHp: number;
+    opponentHp: number;
+    myWpm: number;
+    opponentWpm: number;
+    myPosition: number;
+    opponentPosition: number;
+    textLength: number;
+    isWinning: boolean;
+    status: string;
 }
 
-export function BattleScene({
-  myHp,
-  opponentHp,
-  myWpm,
-  opponentWpm,
-  myPosition,
-  opponentPosition,
-  textLength,
-  isWinning,
-  status,
-}: BattleSceneProps) {
-  const hp_pressure = (myHp - opponentHp) / 100;
-  const progress_pressure = (myPosition - opponentPosition) / Math.max(1, textLength);
-  const pressure = Math.max(-1, Math.min(1, hp_pressure * 0.7 + progress_pressure * 0.3));
-  const push_offset = pressure * 1.45;
-  const left_position: [number, number, number] = [-3.75 + push_offset, -0.55, 0];
-  const right_position: [number, number, number] = [3.75 + push_offset, -0.55, 0];
+class sceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+    state = { failed: false };
+    static getDerivedStateFromError() { return { failed: true }; }
+    render() { return this.state.failed ? <ArenaArtwork /> : this.props.children; }
+}
+const SceneBoundary = sceneBoundary;
 
-  return (
-    <div className="relative w-full max-w-3xl h-48 md:h-60 mx-auto mb-5 overflow-hidden rounded-xl border border-[var(--border)] bg-[#080b16]">
-      <Canvas
-        camera={{ position: [0, 3, 14], fov: 45 }}
-        style={{ width: '100%', height: '100%' }}
-        gl={{ antialias: true, alpha: true, preserveDrawingBuffer: false }}
-      >
-        <fog attach="fog" args={["#0a0a0f", 5, 50]} />
-        <ambientLight intensity={0.45} />
-        <directionalLight position={[5, 10, 5]} intensity={0.8} castShadow />
-        <directionalLight position={[-5, 5, -5]} intensity={0.5} color="#00ff88" />
-        <pointLight position={[-5, 3, 2]} color="#00ff88" intensity={1.8} distance={12} />
-        <pointLight position={[5, 3, 2]} color="#ff3366" intensity={1.8} distance={12} />
+export function BattleScene({ myHp: my_hp, opponentHp: opponent_hp, myWpm: my_wpm, opponentWpm: opponent_wpm, myPosition: my_position, opponentPosition: opponent_position, textLength: text_length, status }: BattleSceneProps) {
+    const [render_3d, setRender3d] = useState(false);
+    const [context_lost, setContextLost] = useState(false);
 
-        <gridHelper args={[40, 40, "#1a1a2e", "#0f0f1a"]} position={[0, -2, 0]} />
-        <mesh position={[0, -1.96, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-          <circleGeometry args={[8.5, 64]} />
-          <meshStandardMaterial color="#111a32" metalness={0.5} roughness={0.4} />
-        </mesh>
-        <mesh position={[0, -1.94, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[6.8, 7.02, 64]} />
-          <meshBasicMaterial color="#53618c" transparent opacity={0.5} side={THREE.DoubleSide} />
-        </mesh>
+    useEffect(() => {
+        const motion_query = window.matchMedia('(prefers-reduced-motion: reduce)');
+        let available = false;
+        const canvas = document.createElement('canvas');
+        try {
+            const context = canvas.getContext('webgl2');
+            available = Boolean(context);
+            context?.getExtension('WEBGL_lose_context')?.loseContext();
+        } catch { available = false; }
+        function updateMotion() { setRender3d(available && !motion_query.matches); }
+        updateMotion();
+        motion_query.addEventListener('change', updateMotion);
+        return () => motion_query.removeEventListener('change', updateMotion);
+    }, []);
 
-        <Fighter
-          side="left"
-          hp={myHp}
-          wpm={myWpm}
-          position={left_position}
-          isDominating={pressure > 0.1}
-          status={status}
-        />
-        <Fighter
-          side="right"
-          hp={opponentHp}
-          wpm={opponentWpm}
-          position={right_position}
-          isDominating={pressure < -0.1}
-          status={status}
-        />
-        <PowerEffect
-          leftPosition={left_position[0]}
-          rightPosition={right_position[0]}
-          pressure={pressure + (myWpm - opponentWpm) / 180}
-          status={status}
-        />
-
-        {status === 'finished' && (
-          <mesh position={[0, 5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[8, 64]} />
-            <meshBasicMaterial
-              color={isWinning ? "#00ff88" : "#ff3366"}
-              transparent
-              opacity={0.1}
-              side={2}
-            />
-          </mesh>
-        )}
-      </Canvas>
-    </div>
-  );
+    const pressure = Math.max(-1, Math.min(1, (my_hp - opponent_hp) / 100 * .7 + (my_position - opponent_position) / Math.max(1, text_length) * .3));
+    return (
+        <div className="battle-scene" aria-hidden="true">
+            {render_3d && !context_lost ? (
+                <SceneBoundary>
+                    <Canvas camera={{ position: [0, 1.6, 7], fov: 34 }} dpr={[1, 1.5]} gl={{ antialias: true, alpha: true }} fallback={<ArenaArtwork />} onCreated={({ gl }) => {
+                        gl.domElement.addEventListener('webglcontextlost', () => setContextLost(true), { once: true });
+                    }}>
+                        <ambientLight intensity={1.8} />
+                        <directionalLight position={[3, 7, 5]} intensity={3} />
+                        <pointLight position={[-4, 3, 2]} color="#68e4ef" intensity={3} />
+                        <pointLight position={[4, 3, 2]} color="#ff857c" intensity={3} />
+                        <gridHelper args={[30, 30, '#34546b', '#1b3043']} position={[0, -.75, 0]} />
+                        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -.76, 0]}>
+                            <circleGeometry args={[6, 64]} /><meshStandardMaterial color="#101f30" metalness={.7} roughness={.4} />
+                        </mesh>
+                        <Fighter side="left" hp={my_hp} wpm={my_wpm} position={[-2.25 + pressure * .4, 0, 0]} status={status} />
+                        <Fighter side="right" hp={opponent_hp} wpm={opponent_wpm} position={[2.25 + pressure * .4, 0, 0]} status={status} />
+                        {status === 'active' && Math.abs(pressure) > .05 && <mesh position={[pressure, .5, 0]} rotation={[0, 0, Math.PI / 4]}><octahedronGeometry args={[.18, 0]} /><meshBasicMaterial color={pressure > 0 ? '#68e4ef' : '#ff857c'} /></mesh>}
+                    </Canvas>
+                </SceneBoundary>
+            ) : <ArenaArtwork />}
+        </div>
+    );
 }
