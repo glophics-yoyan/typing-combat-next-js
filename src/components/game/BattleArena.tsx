@@ -114,14 +114,6 @@ export function BattleArena({
 
   return (
     <div className="flex-1 flex flex-col relative min-h-0">
-      <BattleScene
-        myHp={gameState.myState.hp}
-        opponentHp={gameState.opponentState?.hp || 100}
-        myWpm={gameState.myState.wpm}
-        isWinning={gameState.myState.hp > (gameState.opponentState?.hp || 100)}
-        status={gameState.status}
-      />
-
       <header className="border-b border-[var(--border)] px-6 py-4 flex-shrink-0">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -151,6 +143,18 @@ export function BattleArena({
           opponentHp={gameState.opponentState?.hp || 100}
           myName={username}
           opponentName={oppName}
+        />
+
+        <BattleScene
+          myHp={gameState.myState.hp}
+          opponentHp={gameState.opponentState?.hp || 100}
+          myWpm={gameState.myState.wpm}
+          opponentWpm={gameState.opponentState?.wpm || 0}
+          myPosition={gameState.myState.position}
+          opponentPosition={gameState.opponentState?.position || 0}
+          textLength={gameState.quote?.text.length || 1}
+          isWinning={gameState.myState.hp > (gameState.opponentState?.hp || 100)}
+          status={gameState.status}
         />
 
         {countdown > 0 && (

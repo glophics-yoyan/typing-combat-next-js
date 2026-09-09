@@ -10,13 +10,13 @@ export async function pollForOffer(
   onTimeout: () => void
 ): Promise<() => void> {
   let stopped = false;
-  const startTime = Date.now();
+  let startTime = Date.now();
 
   const poll = async () => {
     if (stopped) return;
     if (Date.now() - startTime > MAX_POLL_DURATION) {
       onTimeout();
-      return;
+      startTime = Date.now();
     }
 
     try {
@@ -52,13 +52,13 @@ export async function pollForAnswer(
   onTimeout: () => void
 ): Promise<() => void> {
   let stopped = false;
-  const startTime = Date.now();
+  let startTime = Date.now();
 
   const poll = async () => {
     if (stopped) return;
     if (Date.now() - startTime > MAX_POLL_DURATION) {
       onTimeout();
-      return;
+      startTime = Date.now();
     }
 
     try {
@@ -94,13 +94,13 @@ export async function pollForOpponent(
   onTimeout: () => void
 ): Promise<() => void> {
   let stopped = false;
-  const startTime = Date.now();
+  let startTime = Date.now();
 
   const poll = async () => {
     if (stopped) return;
     if (Date.now() - startTime > MAX_POLL_DURATION) {
       onTimeout();
-      return;
+      startTime = Date.now();
     }
 
     try {

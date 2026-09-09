@@ -48,13 +48,11 @@ export async function getRoomPlayers(roomId: string): Promise<(RoomPlayer & { us
   return result.map(toRoomPlayer);
 }
 
-export async function joinRoom(roomId: string, userId: string): Promise<RoomPlayer> {
-  const result = await sql`
+export async function joinRoom(roomId: string, userId: string): Promise<void> {
+  await sql`
     INSERT INTO room_players (room_id, user_id) VALUES (${roomId}, ${userId})
     ON CONFLICT (room_id, user_id) DO NOTHING
-    RETURNING *
   `;
-  return toRoomPlayer(result[0]);
 }
 
 export async function updatePlayerState(
