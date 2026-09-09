@@ -22,7 +22,7 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-For production, deploy `typeracer-api` to a persistent Node.js host and set `NEXT_PUBLIC_WEBSOCKET_URL` in Vercel to its `wss://.../ws` endpoint before redeploying this frontend.
+For production, deploy `typeracer-api` to Vercel's WebSocket Public Beta or another WebSocket-capable Node.js host. Set `NEXT_PUBLIC_WEBSOCKET_URL` in this Vercel project to the API's `wss://.../ws` endpoint before redeploying the frontend.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
