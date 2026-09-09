@@ -70,7 +70,10 @@ export async function PATCH(
       let user = await getUser(normalizedUsername);
       if (!user) user = await createUser(normalizedUsername);
       const players = await getRoomPlayers(roomWithHost.id);
-      if (players.length >= 2 && !players.some((player) => player.userId === user!.id)) {
+      if (players.some((player) => player.userId === user.id)) {
+        return NextResponse.json({ error: 'That username is already being used in this battle' }, { status: 409 });
+      }
+      if (players.length >= 2) {
         return NextResponse.json({ error: 'Battle is full' }, { status: 409 });
       }
       await joinRoom(roomWithHost.id, user.id);

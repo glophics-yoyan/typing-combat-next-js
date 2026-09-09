@@ -2,18 +2,36 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useLocalStats } from '@/hooks/useLocalStats';
 
 export default function Home() {
+  const router = useRouter();
   const [username, setUsername] = useState('');
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [join_code, setJoinCode] = useState<string | null>(null);
   const { stats, loading } = useLocalStats();
 
   useEffect(() => {
-    const saved = localStorage.getItem('typeracer-username');
-    if (saved) setUsername(saved);
-  }, []);
+    const frame_id = requestAnimationFrame(() => {
+      const saved = localStorage.getItem('typeracer-username');
+      if (saved) setUsername(saved);
+
+      const requested_code = new URLSearchParams(window.location.search).get('join')?.trim().toUpperCase();
+      if (!requested_code) return;
+
+      setJoinCode(requested_code);
+      if (saved?.trim()) {
+        router.replace(`/battle/${requested_code}`);
+        return;
+      }
+
+      setShowUsernameModal(true);
+    });
+
+    return () => cancelAnimationFrame(frame_id);
+  }, [router]);
 
   const handleCreateBattle = async () => {
     if (!username.trim()) {
@@ -52,7 +70,7 @@ export default function Home() {
         return;
       }
       localStorage.setItem('typeracer-username', username.trim());
-      window.location.href = `/battle/${code.toUpperCase()}`;
+      router.push(`/battle/${code.toUpperCase()}`);
     }
   };
 
@@ -167,8 +185,12 @@ export default function Home() {
               </button>
               <button
                 onClick={() => {
-                  localStorage.setItem('typeracer-username', username.trim());
+                  const normalized_username = username.trim();
+                  localStorage.setItem('typeracer-username', normalized_username);
                   setShowUsernameModal(false);
+                  if (join_code) {
+                    router.replace(`/battle/${join_code}`);
+                  }
                 }}
                 disabled={username.trim().length < 2}
                 className="flex-1 py-3 px-4 bg-[var(--primary)] text-[var(--background)] font-bold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"

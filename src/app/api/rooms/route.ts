@@ -19,8 +19,7 @@ export async function POST(request: NextRequest) {
     const room = await createRoom(user.id, quote.id);
     await joinRoom(room.id, user.id);
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const url = `${baseUrl}/battle/${room.code}`;
+    const url = new URL(`/battle/${room.code}`, request.nextUrl.origin).toString();
 
     return NextResponse.json({
       code: room.code,
