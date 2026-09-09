@@ -21,6 +21,7 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
     const [copy_message, setCopyMessage] = useState('');
     const [invite_url, setInviteUrl] = useState('');
     const [save_error, setSaveError] = useState('');
+    const [results_visible, setResultsVisible] = useState(false);
     const {
         gameState: game_state, connected, error, countdown,
         handleKeystroke, handleReady, startCountdown, retryConnection,
@@ -38,6 +39,18 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
     const opponent_name = live_opponent_name || opponent_username;
     const opponent_state = game_state?.opponentState;
     const waiting = game_state?.status === 'waiting';
+
+    useEffect(() => {
+        if (game_state?.status !== 'finished') return;
+        const motion_query = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const timer = setTimeout(() => setResultsVisible(true), motion_query.matches ? 0 : 900);
+        function showReducedResults() { if (motion_query.matches) setResultsVisible(true); }
+        motion_query.addEventListener('change', showReducedResults);
+        return () => {
+            clearTimeout(timer);
+            motion_query.removeEventListener('change', showReducedResults);
+        };
+    }, [game_state?.status]);
 
     useEffect(() => {
         const frame_id = requestAnimationFrame(() => setInviteUrl(window.location.origin + '/?join=' + room_code));
@@ -95,13 +108,18 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
                 ) : (
                     <>
                         <HealthBars myHp={game_state.myState.hp} opponentHp={opponent_state?.hp ?? 100} myName={username} opponentName={opponent_name} />
-                        <BattleScene myHp={game_state.myState.hp} opponentHp={opponent_state?.hp ?? 100} myWpm={game_state.myState.wpm} opponentWpm={opponent_state?.wpm ?? 0} myPosition={game_state.myState.position} opponentPosition={opponent_state?.position ?? 0} textLength={game_state.quote?.text.length ?? 1} isWinning={game_state.winner ? game_state.winner === 'me' : game_state.myState.hp > (opponent_state?.hp ?? 100)} status={game_state.status} />
+                        <BattleScene key={room_code} quote_text={game_state.quote?.text ?? ''} connected={connected} status={game_state.status} winner={game_state.winner} paused={results_visible}
+                            my_position={game_state.myState.position} opponent_position={opponent_state?.position ?? 0}
+                            my_mistakes={game_state.myState.totalKeystrokes - game_state.myState.correctKeystrokes}
+                            opponent_mistakes={(opponent_state?.totalKeystrokes ?? 0) - (opponent_state?.correctKeystrokes ?? 0)}
+                            my_hp={game_state.myState.hp} opponent_hp={opponent_state?.hp ?? 100} />
+                        {game_state.status === 'finished' && !results_visible && <div className="finish-actions"><span>{game_state.winner === 'me' ? 'Victory is yours.' : 'Duel complete.'}</span><Button variant="secondary" onClick={() => setResultsVisible(true)}>View results</Button></div>}
                         {game_state.status === 'countdown' && <div className="countdown-banner" role="status"><strong>{countdown || 3}</strong><span>Hands on the keyboard. Your duel is about to begin.</span></div>}
                         <TypingInterface gameState={game_state} onKeystroke={handleKeystroke} disabled={!connected} />
                         {opponent_state && <div className="opponent-progress"><span>OPPONENT</span><strong>{opponent_name}</strong><progress aria-label="Opponent quote progress" value={opponent_state.position} max={game_state.quote?.text.length || 1} /><span>{Math.round(opponent_state.wpm)} WPM · {Math.round(opponent_state.accuracy * 100)}% accuracy</span></div>}
                     </>
                 )}
-                {game_state?.status === 'finished' && (
+                {game_state?.status === 'finished' && results_visible && (
                     <GameDialog title={game_state.winner === 'me' ? 'Victory is yours.' : 'A battle. Not the war.'}>
                         <p className={'result-mark' + (game_state.winner === 'me' ? '' : ' defeat')}>{game_state.winner === 'me' ? 'VICTORY' : 'DEFEAT'}</p>
                         <p className="muted">{game_state.winner === 'me' ? 'You defeated ' + opponent_name + '.' : opponent_name + ' won this duel. Your next battle awaits.'}</p>

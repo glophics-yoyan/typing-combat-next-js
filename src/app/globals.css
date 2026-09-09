@@ -173,6 +173,17 @@ h3 { font-weight: 600; }
 .battle-scene .combatant { transform: scale(.8); bottom: 30px; }
 .battle-scene .combatant-right { transform: scale(.8) scaleX(-1); }
 .battle-scene .arena-orbit { bottom: 25px; }
+.battle-scene.anime-arena { height: 310px; background: radial-gradient(ellipse at 50% 70%, #203f59, #0a1422 80%); }
+.combat-scene-label { position: absolute; z-index: 1; top: 16px; left: 20px; right: 20px; display: flex; justify-content: space-between; gap: 16px; pointer-events: none; font-family: var(--font-mono); font-size: 8px; letter-spacing: 1px; color: #9ab6c9; }
+.combat-cues { position: absolute; bottom: 16px; left: 15%; right: 15%; display: flex; justify-content: space-between; gap: 16px; pointer-events: none; font-family: var(--font-mono); font-weight: 700; font-style: italic; font-size: 13px; letter-spacing: 1.2px; }
+.combat-cues > span { color: var(--primary); text-shadow: 0 0 14px #68e4ef55; }
+.combat-cues > span + span { color: var(--danger); text-align: right; text-shadow: 0 0 14px #ff857c55; }
+.anime-arena .art-label { display: none; }
+.arena-finished .combat-cues { font-size: 16px; }
+.arena-finished[data-winner="me"] .combatant-right { opacity: .55; transform: scale(.8) rotate(22deg) scaleX(-1); }
+.arena-finished[data-winner="opponent"] .combatant-left { opacity: .55; transform: scale(.8) rotate(-22deg); }
+.arena-finished[data-winner="me"] .combatant-left .arm-right, .arena-finished[data-winner="opponent"] .combatant-right .arm-right { transform: rotate(-150deg); transform-origin: top; }
+.finish-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 16px; color: var(--primary); }
 .typing-panel { padding: 25px; }
 .typing-panel > .panel-topline { margin-bottom: 20px; }
 .quote-window { height: 112px; overflow-y: auto; scroll-behavior: auto; position: relative; border-bottom: 1px solid var(--border); padding: 4px 0 18px; margin-bottom: 18px; scrollbar-width: thin; scrollbar-color: #40596e transparent; }
@@ -284,6 +295,11 @@ h3 { font-weight: 600; }
     .health-label strong { width: 100%; }
     .health-label span { font-size: 10px; }
     .battle-scene { height: 175px; }
+    .battle-scene.anime-arena { height: 230px; }
+    .combat-scene-label { font-size: 7px; left: 12px; right: 12px; top: 12px; }
+    .combat-scene-label > span + span { display: none; }
+    .combat-cues { left: 9%; right: 9%; bottom: 14px; font-size: 10px; letter-spacing: .5px; }
+    .arena-finished .combat-cues { font-size: 12px; }
     .battle-scene .combatant { transform: scale(.6); bottom: 0; }
     .battle-scene .combatant-right { transform: scale(.6) scaleX(-1); }
     .battle-scene .art-label { display: none; }

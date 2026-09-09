@@ -2,7 +2,13 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+First, start the sibling `typeracer-api` WebSocket service. Then configure this app:
+
+```bash
+copy .env.example .env
+```
+
+Run the development server:
 
 ```bash
 npm run dev
@@ -15,6 +21,8 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+For production, deploy `typeracer-api` to a persistent Node.js host and set `NEXT_PUBLIC_WEBSOCKET_URL` in Vercel to its `wss://.../ws` endpoint before redeploying this frontend.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

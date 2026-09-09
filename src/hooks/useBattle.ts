@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { GameState, PlayerState, Quote, WebRTCMessage } from '@/types';
+import type { GameState, PlayerState, WebRTCMessage } from '@/types';
 import {
   createInitialGameState,
   processKeystroke,
@@ -15,8 +15,8 @@ import {
   isGameActive,
   isGameFinished,
 } from '@/lib/game-engine';
-import { createWebRTCManager } from '@/lib/webrtc';
-import { clearSignaling, pollForOffer, pollForAnswer, pollForOpponent, sendOffer, sendAnswer, fetchRoomState } from '@/lib/signaling';
+import { createWebSocketManager } from '@/lib/websocket';
+import { fetchRoomState } from '@/lib/signaling';
 
 const MAX_CONNECTION_ATTEMPT_DURATION = 20000;
 
@@ -30,8 +30,8 @@ interface UseBattleOptions {
 
 export function useBattle({
   roomCode,
-  isHost,
   userId,
+  username,
   onGameEnd,
 }: UseBattleOptions) {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -41,19 +41,18 @@ export function useBattle({
   const [connection_attempt, setConnectionAttempt] = useState(0);
   const [opponent_username, setOpponentUsername] = useState('');
 
-  const webrtcRef = useRef<ReturnType<typeof createWebRTCManager> | null>(null);
+  const websocketRef = useRef<ReturnType<typeof createWebSocketManager> | null>(null);
   const animationRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number>(0);
   const cleanupFnsRef = useRef<(() => void)[]>([]);
-  const quoteRef = useRef<Quote | null>(null);
   const didReportEndRef = useRef(false);
   const didSendFinishRef = useRef(false);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gameLoopRef = useRef<((timestamp: number) => void) | null>(null);
 
   const sendState = useCallback(() => {
-    if (webrtcRef.current && gameState) {
-      webrtcRef.current.sendState(gameState.myState);
+    if (websocketRef.current && gameState) {
+      websocketRef.current.sendState(gameState.myState);
     }
   }, [gameState]);
 
@@ -113,13 +112,17 @@ export function useBattle({
   }, []);
 
   useEffect(() => {
-    const webrtc = createWebRTCManager(isHost);
+    const websocket = createWebSocketManager({
+      room_code: roomCode,
+      user_id: userId,
+      username,
+    });
     let is_cancelled = false;
-    webrtcRef.current = webrtc;
+    websocketRef.current = websocket;
 
-    const unsubMessage = webrtc.onMessage(handleMessage);
-    const unsubConnection = webrtc.onConnectionChange(handleConnectionChange);
-    const unsubError = webrtc.onError(handleError);
+    const unsubMessage = websocket.onMessage(handleMessage);
+    const unsubConnection = websocket.onConnectionChange(handleConnectionChange);
+    const unsubError = websocket.onError(handleError);
     cleanupFnsRef.current = [unsubMessage, unsubConnection, unsubError];
 
     const initConnection = async () => {
@@ -131,7 +134,6 @@ export function useBattle({
           return;
         }
 
-        quoteRef.current = roomData.quote;
         const initialState = createInitialGameState(roomData.quote);
         const me = roomData.players.find((player) => player.userId === userId);
         const opponent = roomData.players.find((player) => player.userId !== userId);
@@ -149,55 +151,7 @@ export function useBattle({
           setOpponentUsername(opponent.username);
         }
         setGameState(initialState);
-
-        if (isHost) {
-        const startHostConnection = async () => {
-          await clearSignaling(roomCode);
-          if (is_cancelled) return;
-          const session_id = crypto.randomUUID();
-          webrtc.initialize(async (signal) => {
-              await sendOffer(roomCode, session_id, signal);
-            });
-
-            const stopPolling = await pollForAnswer(
-              roomCode,
-              session_id,
-              async (answer) => {
-                webrtc.handleSignal(answer);
-              },
-              () => setError('Connection timeout')
-            );
-            cleanupFnsRef.current.push(stopPolling);
-          };
-
-          if (roomData.players.length >= 2) {
-            await startHostConnection();
-          } else {
-            const stopPolling = await pollForOpponent(
-              roomCode,
-              () => {
-                void startHostConnection().catch((err) => {
-                  setError(err instanceof Error ? err.message : 'Connection failed');
-                });
-              },
-              () => setError('Waiting for opponent')
-            );
-            cleanupFnsRef.current.push(stopPolling);
-          }
-        } else {
-          const stopPolling = await pollForOffer(
-            roomCode,
-            async (offer) => {
-              if (is_cancelled) return;
-              webrtc.initialize(async (signal) => {
-                await sendAnswer(roomCode, offer.sessionId, signal);
-              });
-              webrtc.handleSignal(offer.signal);
-            },
-            () => setError('Connection timeout')
-          );
-          cleanupFnsRef.current.push(stopPolling);
-        }
+        websocket.initialize();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Connection failed');
       }
@@ -206,8 +160,8 @@ export function useBattle({
     initConnection();
 
     reconnectTimerRef.current = setTimeout(() => {
-      if (is_cancelled || webrtc.isConnected()) return;
-      setError('Direct connection timed out. Retrying...');
+      if (is_cancelled || websocket.isConnected()) return;
+      setError('Realtime connection timed out. Retrying...');
       setConnectionAttempt((current_attempt) => current_attempt + 1);
     }, MAX_CONNECTION_ATTEMPT_DURATION);
 
@@ -215,14 +169,14 @@ export function useBattle({
       is_cancelled = true;
       cleanupFnsRef.current.forEach((fn) => fn());
       cleanupFnsRef.current = [];
-      webrtc.destroy();
+      websocket.destroy();
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;
       }
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
-  }, [roomCode, isHost, userId, handleMessage, handleConnectionChange, handleError, connection_attempt]);
+  }, [roomCode, userId, username, handleMessage, handleConnectionChange, handleError, connection_attempt]);
 
   const gameLoop = useCallback((timestamp: number) => {
     if (!gameState) return;
@@ -251,7 +205,7 @@ export function useBattle({
       if (isGameFinished(next) && prev.status !== 'finished') {
         if (!didSendFinishRef.current && next.winner) {
           didSendFinishRef.current = true;
-          webrtcRef.current?.sendFinish(next.winner);
+          websocketRef.current?.sendFinish(next.winner);
         }
       }
 
@@ -305,7 +259,7 @@ export function useBattle({
     setGameState((prev: GameState | null) => {
       if (!prev) return prev;
       const next = setReady(prev);
-      webrtcRef.current?.sendReady(next.myState);
+      websocketRef.current?.sendReady(next.myState);
       return next;
     });
   }, []);
@@ -314,14 +268,14 @@ export function useBattle({
     setGameState((prev: GameState | null) => {
       if (!prev || !canStartCountdown(prev)) return prev;
       const next = startGame(prev);
-      webrtcRef.current?.sendStart(next.startTime!);
+      websocketRef.current?.sendStart(next.startTime!);
       return next;
     });
   }, []);
 
   const retryConnection = useCallback(() => {
     setConnected(false);
-    setError('Retrying direct connection...');
+    setError('Retrying realtime connection...');
     setConnectionAttempt((current_attempt) => current_attempt + 1);
   }, []);
 
