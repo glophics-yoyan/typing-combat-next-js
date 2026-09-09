@@ -88,6 +88,41 @@ export async function pollForAnswer(
   };
 }
 
+export async function pollForOpponent(
+  roomCode: string,
+  onOpponent: () => void,
+  onTimeout: () => void
+): Promise<() => void> {
+  let stopped = false;
+  const startTime = Date.now();
+
+  const poll = async () => {
+    if (stopped) return;
+    if (Date.now() - startTime > MAX_POLL_DURATION) {
+      onTimeout();
+      return;
+    }
+
+    try {
+      const roomData = await fetchRoomState(roomCode);
+      if (roomData && roomData.players.length >= 2) {
+        onOpponent();
+        return;
+      }
+    } catch (error) {
+      console.error('[Signaling] Opponent poll error:', error);
+    }
+
+    setTimeout(poll, POLL_INTERVAL);
+  };
+
+  poll();
+
+  return () => {
+    stopped = true;
+  };
+}
+
 export async function pollForIceCandidates(
   roomCode: string,
   onIce: (candidates: SignalData[]) => void
@@ -142,6 +177,11 @@ export async function sendAnswer(roomCode: string, answer: SignalData): Promise<
     body: JSON.stringify({ type: 'answer', payload: answer }),
   });
   if (!res.ok) throw new Error('Failed to send answer');
+}
+
+export async function clearSignaling(roomCode: string): Promise<void> {
+  const res = await fetch(`/api/rooms/${roomCode}/signaling`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to clear signaling data');
 }
 
 export async function sendIceCandidate(roomCode: string, candidate: SignalData): Promise<void> {

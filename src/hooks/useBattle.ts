@@ -17,7 +17,7 @@ import {
   isGameFinished,
 } from '@/lib/game-engine';
 import { createWebRTCManager } from '@/lib/webrtc';
-import { pollForOffer, pollForAnswer, sendOffer, sendAnswer, fetchRoomState } from '@/lib/signaling';
+import { clearSignaling, pollForOffer, pollForAnswer, pollForOpponent, sendOffer, sendAnswer, fetchRoomState } from '@/lib/signaling';
 
 interface UseBattleOptions {
   roomCode: string;
@@ -138,18 +138,36 @@ export function useBattle({
         setGameState(initialState);
 
         if (isHost) {
-          webrtc.initialize(async (signal) => {
-            await sendOffer(roomCode, signal);
-          });
+          const startHostConnection = async () => {
+            await clearSignaling(roomCode);
+            webrtc.initialize(async (signal) => {
+              await sendOffer(roomCode, signal);
+            });
 
-          const stopPolling = await pollForAnswer(
-            roomCode,
-            async (answer) => {
-              webrtc.handleSignal(answer);
-            },
-            () => setError('Connection timeout')
-          );
-          cleanupFnsRef.current.push(stopPolling);
+            const stopPolling = await pollForAnswer(
+              roomCode,
+              async (answer) => {
+                webrtc.handleSignal(answer);
+              },
+              () => setError('Connection timeout')
+            );
+            cleanupFnsRef.current.push(stopPolling);
+          };
+
+          if (roomData.players.length >= 2) {
+            await startHostConnection();
+          } else {
+            const stopPolling = await pollForOpponent(
+              roomCode,
+              () => {
+                void startHostConnection().catch((err) => {
+                  setError(err instanceof Error ? err.message : 'Connection failed');
+                });
+              },
+              () => setError('Waiting for opponent')
+            );
+            cleanupFnsRef.current.push(stopPolling);
+          }
         } else {
           if (roomData.room.signalingOffer) {
             webrtc.initialize(async (signal) => {
