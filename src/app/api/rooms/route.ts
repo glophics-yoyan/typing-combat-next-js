@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRoom, getUser, createUser, getRandomQuote, joinRoom } from '@/lib/db';
-import { getRandomQuote as getFallbackQuote } from '@/lib/quotes';
+import { createRoom, getUser, createUser, createBattleQuote, joinRoom } from '@/lib/db';
+import { generateBattleQuote } from '@/lib/quotes';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +15,9 @@ export async function POST(request: NextRequest) {
       user = await createUser(username);
     }
 
-    const quote = await getRandomQuote(Number(difficulty)).catch(() => null) ?? getFallbackQuote(Number(difficulty));
+    const selected_difficulty = Number(difficulty);
+    const generated_quote = generateBattleQuote(selected_difficulty);
+    const quote = await createBattleQuote(generated_quote.text, generated_quote.difficulty);
     const room = await createRoom(user.id, quote.id);
     await joinRoom(room.id, user.id);
 

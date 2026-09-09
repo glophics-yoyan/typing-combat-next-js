@@ -7,7 +7,6 @@ import {
   processKeystroke,
   applyOpponentState,
   applyDamage,
-  checkQuoteComplete,
   startGame,
   beginActiveGame,
   setReady,
@@ -227,7 +226,6 @@ export function useBattle({
 
       if (isGameActive(next)) {
         next = applyDamage(next, dt);
-        next = checkQuoteComplete(next);
       }
 
       if (isGameFinished(next) && prev.status !== 'finished') {

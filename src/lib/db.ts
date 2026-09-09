@@ -127,6 +127,18 @@ export async function getRandomQuote(difficulty: number): Promise<Quote | null> 
   return result[0] ? toQuote(result[0]) : null;
 }
 
+export async function createBattleQuote(
+  text: string,
+  difficulty: number
+): Promise<Quote> {
+  const result = await sql`
+    INSERT INTO quotes (text, author, difficulty)
+    VALUES (${text}, ${'Shuffled battle sequence'}, ${difficulty})
+    RETURNING *
+  `;
+  return toQuote(result[0]);
+}
+
 export async function getQuoteById(id: string): Promise<Quote | null> {
   const result = await sql`SELECT * FROM quotes WHERE id = ${id}`;
   return result[0] ? toQuote(result[0]) : null;

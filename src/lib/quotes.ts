@@ -1,5 +1,7 @@
 import type { Quote } from '@/types';
 
+const BATTLE_SENTENCE_COUNT = 15;
+
 export const FALLBACK_QUOTES: Quote[] = [
   { id: '1', text: 'The only way to do great work is to love what you do.', author: 'Steve Jobs', difficulty: 1, charCount: 56 },
   { id: '2', text: 'In the middle of difficulty lies opportunity.', author: 'Albert Einstein', difficulty: 1, charCount: 46 },
@@ -53,7 +55,7 @@ export const FALLBACK_QUOTES: Quote[] = [
   { id: '50', text: 'Two roads diverged in a wood, and I took the one less traveled by, and that has made all the difference.', author: 'Robert Frost', difficulty: 3, charCount: 96 },
 ];
 
-let quoteCache: Map<number, Quote[]> = new Map();
+const quoteCache: Map<number, Quote[]> = new Map();
 
 export function getQuotesByDifficulty(difficulty: number): Quote[] {
   if (!quoteCache.has(difficulty)) {
@@ -65,6 +67,26 @@ export function getQuotesByDifficulty(difficulty: number): Quote[] {
 export function getRandomQuote(difficulty: number): Quote {
   const quotes = getQuotesByDifficulty(difficulty);
   return quotes[Math.floor(Math.random() * quotes.length)];
+}
+
+export function generateBattleQuote(difficulty: number): Pick<Quote, 'text' | 'author' | 'difficulty'> {
+  const shuffled_sentences = [...FALLBACK_QUOTES];
+
+  for (let index = shuffled_sentences.length - 1; index > 0; index--) {
+    const swap_index = Math.floor(Math.random() * (index + 1));
+    [shuffled_sentences[index], shuffled_sentences[swap_index]] = [shuffled_sentences[swap_index], shuffled_sentences[index]];
+  }
+
+  const text = shuffled_sentences
+    .slice(0, BATTLE_SENTENCE_COUNT)
+    .map((sentence, index) => {
+      const word_count = sentence.text.split(/\s+/).length;
+      const should_add_number = word_count >= 10 && (index + sentence.text.length) % 3 === 0;
+      return should_add_number ? `${sentence.text} ${Math.floor(Math.random() * 900) + 100}` : sentence.text;
+    })
+    .join(' ');
+
+  return { text, author: 'Shuffled battle sequence', difficulty };
 }
 
 export async function fetchQuoteFromAPI(difficulty: number): Promise<Quote | null> {
