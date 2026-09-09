@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRoomByCode, getRoomPlayers, joinRoom, getUser, createUser, updateRoomStatus } from '@/lib/db';
+import { getRoomByCode, getRoomPlayers, joinRoom, getUser, createUser, updateRoomStatus, getQuoteById } from '@/lib/db';
+import { FALLBACK_QUOTES } from '@/lib/quotes';
 import type { Quote } from '@/types';
 
 export async function GET(
@@ -18,11 +19,9 @@ export async function GET(
 
     let quote: Quote | null = null;
     if (roomWithHost.quoteId) {
-      // In a real app, fetch from DB. For now, we'll fetch from API
-      const quoteRes = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/quotes?id=${roomWithHost.quoteId}`);
-      if (quoteRes.ok) {
-        quote = await quoteRes.json();
-      }
+      quote = await getQuoteById(roomWithHost.quoteId).catch(() => null)
+        ?? FALLBACK_QUOTES.find((fallback_quote) => fallback_quote.id === roomWithHost.quoteId)
+        ?? null;
     }
 
     return NextResponse.json({

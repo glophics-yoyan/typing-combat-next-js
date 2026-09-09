@@ -127,6 +127,11 @@ export async function getRandomQuote(difficulty: number): Promise<Quote | null> 
   return result[0] ? toQuote(result[0]) : null;
 }
 
+export async function getQuoteById(id: string): Promise<Quote | null> {
+  const result = await sql`SELECT * FROM quotes WHERE id = ${id}`;
+  return result[0] ? toQuote(result[0]) : null;
+}
+
 export async function saveMatch(match: Omit<Match, 'id' | 'playedAt'>): Promise<Match> {
   const result = await sql`
     INSERT INTO matches (room_id, winner_id, loser_id, winner_wpm, loser_wpm, duration_ms)
