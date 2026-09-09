@@ -11,7 +11,6 @@ import {
   startGame,
   beginActiveGame,
   setReady,
-  setOpponentReady,
   canStartCountdown,
   isGameActive,
   isGameFinished,
@@ -65,7 +64,11 @@ export function useBattle({
         break;
       }
       case 'ready': {
-        setGameState((prev: GameState | null) => (prev ? setOpponentReady(prev) : prev));
+        const opponent_state = message.payload as PlayerState;
+        setGameState((prev: GameState | null) => {
+          if (!prev) return prev;
+          return applyOpponentState(prev, { ...opponent_state, isReady: true });
+        });
         break;
       }
       case 'start': {
@@ -278,7 +281,7 @@ export function useBattle({
     setGameState((prev: GameState | null) => {
       if (!prev) return prev;
       const next = setReady(prev);
-      webrtcRef.current?.sendReady();
+      webrtcRef.current?.sendReady(next.myState);
       return next;
     });
   }, []);

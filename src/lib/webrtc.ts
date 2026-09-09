@@ -99,8 +99,8 @@ export class WebRTCManager {
     this.send({ type: 'keystroke', payload: { char, position, isCorrect, timestamp: Date.now() } });
   }
 
-  sendReady(): void {
-    this.send({ type: 'ready', payload: {} });
+  sendReady(state: PlayerState): void {
+    this.send({ type: 'ready', payload: state });
   }
 
   sendStart(startTime: number): void {
