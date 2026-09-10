@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocalStats } from '@/hooks/useLocalStats';
 import { ArenaArtwork, Button, Field, GameFooter, GameHeader, Metric, Panel } from '@/components/game/GameUI';
+import type { ApiEnvelope, RoomSessionData } from '@/types';
 
 export default function Home() {
     const router = useRouter();
@@ -61,15 +62,27 @@ export default function Home() {
                 router.push('/battle/' + normalized_code);
                 return;
             }
-            const response = await fetch('/api/rooms', {
+            if (process.env.NEXT_PUBLIC_GAME_PROTOCOL_VERSION === '1') {
+                const legacy_response = await fetch('/api/rooms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: normalized_name, difficulty: stats?.settings.quote_difficulty ?? 2 }),
+                });
+                const legacy_data = await legacy_response.json();
+                if (!legacy_response.ok) throw new Error(legacy_data.error || 'Unable to create a battle. Please try again.');
+                localStorage.setItem('typeracer-room-user-' + legacy_data.code, legacy_data.userId);
+                router.push('/battle/' + legacy_data.code);
+                return;
+            }
+            const response = await fetch('/api/v2/rooms', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: normalized_name }),
+                body: JSON.stringify({ username: normalized_name, difficulty: stats?.settings.quote_difficulty ?? 2 }),
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Unable to create a battle. Please try again.');
-            localStorage.setItem('typeracer-room-user-' + data.code, data.userId);
-            router.push('/battle/' + data.code);
+            const envelope = await response.json() as ApiEnvelope<RoomSessionData>;
+            if (!response.ok || !envelope.data) throw new Error(envelope.message || 'Unable to create a battle. Please try again.');
+            sessionStorage.setItem('typeracer-room-session-' + envelope.data.room.code, JSON.stringify(envelope.data));
+            router.push('/battle/' + envelope.data.room.code);
         } catch (caught_error) {
             setError(caught_error instanceof Error ? caught_error.message : 'Unable to connect. Please try again.');
             setBusy(false);
@@ -122,7 +135,7 @@ export default function Home() {
                 </section>
                 <Panel className="record-strip">
                     <div><p className="eyebrow">YOUR COMBAT RECORD</p><Link href="/stats" className="text-link">View full record <span aria-hidden="true">↗</span></Link></div>
-                    <div className="record-metrics"><Metric label="Battles" value={loading ? '—' : stats?.totalMatches ?? 0} /><Metric label="Victories" value={loading ? '—' : stats?.wins ?? 0} accent /><Metric label="Best WPM" value={loading ? '—' : Math.round(stats?.bestWpm ?? 0)} /><Metric label="Best accuracy" value={loading ? '—' : Math.round((stats?.bestAccuracy ?? 0) * 100) + '%'} /></div>
+                    <div className="record-metrics"><Metric label="Battles" value={loading ? '—' : stats?.total_matches ?? 0} /><Metric label="Victories" value={loading ? '—' : stats?.wins ?? 0} accent /><Metric label="Best WPM" value={loading ? '—' : Math.round(stats?.best_wpm ?? 0)} /><Metric label="Best accuracy" value={loading ? '—' : Math.round((stats?.best_accuracy ?? 0) * 100) + '%'} /></div>
                 </Panel>
             </main>
             <GameFooter />

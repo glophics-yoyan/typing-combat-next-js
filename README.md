@@ -8,6 +8,14 @@ First, start the sibling `typeracer-api` WebSocket service. Then configure this 
 copy .env.example .env
 ```
 
+Set `DATABASE_URL`, `GUEST_SESSION_SECRET`, and `ROOM_TOKEN_SECRET`. The two secrets must each contain at least 32 characters, and `ROOM_TOKEN_SECRET` must match the realtime API. Apply the authoritative battle schema before starting either service:
+
+```bash
+npm run db:migrate
+```
+
+Protocol v2 is enabled with `NEXT_PUBLIC_GAME_PROTOCOL_VERSION=2`. Version 1 remains available temporarily as a deployment rollback option.
+
 Run the development server:
 
 ```bash

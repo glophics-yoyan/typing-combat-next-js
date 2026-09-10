@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { recordMatch } from '@/lib/storage';
-import { useBattle } from '@/hooks/useBattle';
+import { useAuthoritativeBattle } from '@/hooks/useAuthoritativeBattle';
+import { useSettings } from '@/hooks/useSettings';
+import { playBattleSound } from '@/lib/battle-audio';
 import { HealthBars } from '@/components/game/HealthBars';
 import { TypingInterface } from '@/components/game/TypingInterface';
 import { BattleScene } from '@/components/three/BattleScene';
@@ -14,34 +16,54 @@ interface BattleArenaProps {
     isHost: boolean;
     userId: string;
     username: string;
+    joinToken: string;
     opponentUsername?: string;
 }
 
-export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user_id, username, opponentUsername: opponent_username = 'Opponent' }: BattleArenaProps) {
+export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user_id, username, joinToken: join_token, opponentUsername: opponent_username = 'Opponent' }: BattleArenaProps) {
     const [copy_message, setCopyMessage] = useState('');
     const [invite_url, setInviteUrl] = useState('');
     const [save_error, setSaveError] = useState('');
     const [results_visible, setResultsVisible] = useState(false);
+    const { settings } = useSettings();
+    const opponent_hp_ref = useRef(100);
     const {
-        gameState: game_state, connected, error, countdown,
-        handleKeystroke, handleReady, startCountdown, retryConnection,
+        gameState: game_state, connected, opponentConnected: opponent_connected, error, countdown,
+        handleKeystroke, handleReady, requestRematch, retryConnection, rematchVotes: rematch_votes,
         opponentUsername: live_opponent_name,
-    } = useBattle({
-        roomCode: room_code,
-        isHost: is_host,
-        userId: user_id,
-        username,
-        onGameEnd: (won, wpm, accuracy, duration) => {
-            void recordMatch(won, wpm, accuracy, duration, live_opponent_name || opponent_username)
+    } = useAuthoritativeBattle({
+        room_code,
+        user_id,
+        join_token,
+        on_game_end: (result) => {
+            const own_result = result.participants.find((participant) => participant.user_id === user_id);
+            if (!own_result || !result.winner_user_id) return;
+            void recordMatch(result.match_id, result.winner_user_id === user_id, own_result.wpm, own_result.accuracy, result.duration_ms, live_opponent_name || opponent_username)
                 .catch(() => setSaveError('This result could not be saved to your browser.'));
         },
     });
     const opponent_name = live_opponent_name || opponent_username;
     const opponent_state = game_state?.opponentState;
     const waiting = game_state?.status === 'waiting';
+    const cancelled = game_state?.status === 'cancelled';
+    const result_available = game_state?.status === 'finished' && game_state.winner !== null;
+
+    function readyForBattle() {
+        playBattleSound('ready', settings.sound_enabled);
+        handleReady();
+    }
+
+    function typeCharacter(character: string, is_correct: boolean) {
+        playBattleSound(is_correct ? 'correct' : 'incorrect', settings.sound_enabled);
+        handleKeystroke(character);
+    }
 
     useEffect(() => {
-        if (game_state?.status !== 'finished') return;
+        if (game_state?.status === 'waiting') {
+            const reset_timer = setTimeout(() => setResultsVisible(false), 0);
+            return () => clearTimeout(reset_timer);
+        }
+        if (!result_available) return;
         const motion_query = window.matchMedia('(prefers-reduced-motion: reduce)');
         const timer = setTimeout(() => setResultsVisible(true), motion_query.matches ? 0 : 900);
         function showReducedResults() { if (motion_query.matches) setResultsVisible(true); }
@@ -50,16 +72,26 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
             clearTimeout(timer);
             motion_query.removeEventListener('change', showReducedResults);
         };
-    }, [game_state?.status]);
+    }, [game_state?.status, result_available]);
+
+    useEffect(() => {
+        if (game_state?.status === 'countdown' && countdown > 0) playBattleSound('countdown', settings.sound_enabled);
+    }, [countdown, game_state?.status, settings.sound_enabled]);
+
+    useEffect(() => {
+        if (result_available) playBattleSound(game_state?.winner === 'me' ? 'victory' : 'defeat', settings.sound_enabled);
+    }, [game_state?.winner, result_available, settings.sound_enabled]);
+
+    useEffect(() => {
+        const opponent_hp = opponent_state?.hp ?? 100;
+        if (opponent_hp < opponent_hp_ref.current) playBattleSound('impact', settings.sound_enabled);
+        opponent_hp_ref.current = opponent_hp;
+    }, [opponent_state?.hp, settings.sound_enabled]);
 
     useEffect(() => {
         const frame_id = requestAnimationFrame(() => setInviteUrl(window.location.origin + '/?join=' + room_code));
         return () => cancelAnimationFrame(frame_id);
     }, [room_code]);
-
-    useEffect(() => {
-        if (is_host && connected && game_state?.status === 'waiting' && game_state.myState.isReady && game_state.opponentState?.isReady) startCountdown();
-    }, [game_state, is_host, connected, startCountdown]);
 
     async function copyInvite(value: string, label: string) {
         try {
@@ -75,8 +107,8 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
             <GameHeader active="battle" />
             <main id="main" className="page-container battle-page">
                 <div className="battle-topline">
-                    <div><p className="eyebrow">PRIVATE DUEL / {room_code}</p><h1>{waiting ? 'Prepare for deployment.' : game_state?.status === 'finished' ? 'Battle complete.' : 'The arena is yours.'}</h1></div>
-                    <Status tone={connected ? 'good' : error ? 'danger' : 'neutral'}>{connected ? 'Opponent connected' : error ? 'Connection interrupted' : 'Waiting for connection'}</Status>
+                    <div><p className="eyebrow">PRIVATE DUEL / {room_code}</p><h1>{waiting ? 'Prepare for deployment.' : cancelled ? 'Battle cancelled.' : game_state?.status === 'finished' ? 'Battle complete.' : game_state?.status === 'paused' ? 'Battle paused.' : 'The arena is yours.'}</h1></div>
+                    <Status tone={connected && opponent_connected ? 'good' : error ? 'danger' : 'neutral'}>{!connected ? 'Restoring connection' : opponent_connected ? 'Opponent connected' : 'Waiting for opponent'}</Status>
                 </div>
                 {error && <div className="form-error" role="alert">{error} {!connected && <Button variant="secondary" onClick={retryConnection}>Retry connection</Button>}</div>}
                 {!game_state ? (
@@ -89,7 +121,7 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
                                 <ArenaArtwork />
                                 <div style={{ padding: '0 22px 14px' }}>
                                     <div className="player-slot"><div><strong>{username}</strong><small>YOU · {is_host ? 'ROOM HOST' : 'CHALLENGER'}</small></div><Status tone={game_state.myState.isReady ? 'good' : 'neutral'}>{game_state.myState.isReady ? 'Ready' : 'Not ready'}</Status></div>
-                                    <div className="player-slot"><div><strong>{connected || opponent_state ? opponent_name : 'Opponent slot open'}</strong><small>{connected ? 'CONNECTED' : 'AWAITING CONNECTION'}</small></div><Status tone={opponent_state?.isReady ? 'good' : 'neutral'}>{opponent_state?.isReady ? 'Ready' : connected ? 'Not ready' : 'Waiting'}</Status></div>
+                                    <div className="player-slot"><div><strong>{opponent_connected || opponent_state ? opponent_name : 'Opponent slot open'}</strong><small>{opponent_connected ? 'CONNECTED' : 'AWAITING CONNECTION'}</small></div><Status tone={opponent_state?.isReady ? 'good' : 'neutral'}>{opponent_state?.isReady ? 'Ready' : opponent_connected ? 'Not ready' : 'Waiting'}</Status></div>
                                 </div>
                             </Panel>
                             <Panel className="lobby-controls">
@@ -99,7 +131,7 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
                                 <p className="copy-note" role="status">{copy_message}</p>
                                 <p className="invite-link">{invite_url}</p>
                                 <div className="divider"><span>PRE-FLIGHT CHECK</span></div>
-                                <Button className="full-width" onClick={handleReady} disabled={!connected || game_state.myState.isReady}>{game_state.myState.isReady ? 'Ready · Waiting for your rival' : 'Ready to battle'}<span aria-hidden="true">→</span></Button>
+                                <Button className="full-width" onClick={readyForBattle} disabled={!connected || !opponent_connected || game_state.myState.isReady}>{game_state.myState.isReady ? 'Ready · Waiting for your rival' : 'Ready to battle'}<span aria-hidden="true">→</span></Button>
                                 <p className="lobby-hint">Type fast, stay accurate. Finish the quote first or reduce your opponent’s health to zero. Wrong keys are marked and lower accuracy, but they will not stop your cursor.</p>
                             </Panel>
                         </div>
@@ -108,24 +140,27 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
                 ) : (
                     <>
                         <HealthBars myHp={game_state.myState.hp} opponentHp={opponent_state?.hp ?? 100} myName={username} opponentName={opponent_name} />
-                        <BattleScene key={room_code} quote_text={game_state.quote?.text ?? ''} connected={connected} status={game_state.status} winner={game_state.winner} paused={results_visible}
+                        <BattleScene key={room_code} quote_text={game_state.quote?.text ?? ''} connected={connected && opponent_connected} status={game_state.status} winner={game_state.winner} paused={results_visible || game_state.status === 'paused' || cancelled} particles_enabled={settings.particles_enabled}
                             my_position={game_state.myState.position} opponent_position={opponent_state?.position ?? 0}
                             my_mistakes={game_state.myState.totalKeystrokes - game_state.myState.correctKeystrokes}
                             opponent_mistakes={(opponent_state?.totalKeystrokes ?? 0) - (opponent_state?.correctKeystrokes ?? 0)}
                             my_hp={game_state.myState.hp} opponent_hp={opponent_state?.hp ?? 100} />
-                        {game_state.status === 'finished' && !results_visible && <div className="finish-actions"><span>{game_state.winner === 'me' ? 'Victory is yours.' : 'Duel complete.'}</span><Button variant="secondary" onClick={() => setResultsVisible(true)}>View results</Button></div>}
+                        {result_available && !results_visible && <div className="finish-actions"><span>{game_state.winner === 'me' ? 'Victory is yours.' : 'Duel complete.'}</span><Button variant="secondary" onClick={() => setResultsVisible(true)}>View results</Button></div>}
                         {game_state.status === 'countdown' && <div className="countdown-banner" role="status"><strong>{countdown || 3}</strong><span>Hands on the keyboard. Your duel is about to begin.</span></div>}
-                        <TypingInterface gameState={game_state} onKeystroke={handleKeystroke} disabled={!connected} />
+                        {game_state.status === 'paused' && <div className="countdown-banner" role="status"><strong>PAUSED</strong><span>Waiting up to 30 seconds for both fighters to reconnect.</span></div>}
+                        {cancelled && <Panel className="empty-state"><h2>This battle was cancelled.</h2><p className="muted">A fighter did not reconnect in time. No result was added to your combat record.</p><div className="dialog-actions"><Button onClick={requestRematch} disabled={!opponent_connected || rematch_votes[user_id]}>Request rematch</Button><Link href="/" className="button button-secondary">Back to lobby</Link></div></Panel>}
+                        {game_state.status === 'finished' && !result_available && <Panel className="empty-state"><h2>This battle has already finished.</h2><p className="muted">The live result is no longer available. Both fighters can request a fresh rematch.</p><div className="dialog-actions"><Button onClick={requestRematch} disabled={!opponent_connected || rematch_votes[user_id]}>Request rematch</Button><Link href="/" className="button button-secondary">Back to lobby</Link></div></Panel>}
+                        <TypingInterface gameState={game_state} onKeystroke={typeCharacter} disabled={!connected || !opponent_connected} />
                         {opponent_state && <div className="opponent-progress"><span>OPPONENT</span><strong>{opponent_name}</strong><progress aria-label="Opponent quote progress" value={opponent_state.position} max={game_state.quote?.text.length || 1} /><span>{Math.round(opponent_state.wpm)} WPM · {Math.round(opponent_state.accuracy * 100)}% accuracy</span></div>}
                     </>
                 )}
-                {game_state?.status === 'finished' && results_visible && (
+                {result_available && results_visible && (
                     <GameDialog title={game_state.winner === 'me' ? 'Victory is yours.' : 'A battle. Not the war.'}>
                         <p className={'result-mark' + (game_state.winner === 'me' ? '' : ' defeat')}>{game_state.winner === 'me' ? 'VICTORY' : 'DEFEAT'}</p>
                         <p className="muted">{game_state.winner === 'me' ? 'You defeated ' + opponent_name + '.' : opponent_name + ' won this duel. Your next battle awaits.'}</p>
                         <div className="result-metrics"><Metric label="Your WPM" value={Math.round(game_state.myState.wpm)} accent /><Metric label="Your accuracy" value={Math.round(game_state.myState.accuracy * 100) + '%'} /></div>
                         {save_error && <p role="alert" className="form-error">{save_error}</p>}
-                        <div className="dialog-actions"><Link href="/" className="button button-primary">Back to lobby</Link><Link href="/stats" className="button button-secondary">Combat record</Link></div>
+                        <div className="dialog-actions"><Button onClick={requestRematch} disabled={!opponent_connected || rematch_votes[user_id]}>{rematch_votes[user_id] ? 'Rematch requested' : 'Request rematch'}</Button><Link href="/stats" className="button button-secondary">Combat record</Link></div>
                     </GameDialog>
                 )}
             </main>

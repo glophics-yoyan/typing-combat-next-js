@@ -20,9 +20,10 @@ interface BattleSceneProps {
     opponent_mistakes: number;
     my_hp: number;
     opponent_hp: number;
+    particles_enabled: boolean;
 }
 
-function CombatWorld({ snapshot, cue_refs }: { snapshot: CombatSnapshot; cue_refs: [RefObject<HTMLSpanElement | null>, RefObject<HTMLSpanElement | null>] }) {
+function CombatWorld({ snapshot, cue_refs, effects_enabled }: { snapshot: CombatSnapshot; cue_refs: [RefObject<HTMLSpanElement | null>, RefObject<HTMLSpanElement | null>]; effects_enabled: boolean }) {
     const left_ref = useRef<FighterRig>(null);
     const right_ref = useRef<FighterRig>(null);
     const left_effect_ref = useRef<EffectRig>(null);
@@ -114,6 +115,13 @@ function CombatWorld({ snapshot, cue_refs }: { snapshot: CombatSnapshot; cue_ref
                     : attack ? ATTACK_LABELS[attack.kind] : 'GUARD';
             }
             const effect = effects[side]!;
+            if (!effects_enabled) {
+                effect.projectile.visible = false;
+                effect.burst.visible = false;
+                effect.slash.visible = false;
+                effect.trail.forEach((trail) => { trail.visible = false; });
+                return;
+            }
             const target_side = side === 0 ? 1 : 0;
             const target = timeline.fighters[target_side];
             const target_x = positions[target_side] - direction * .4;
@@ -270,7 +278,7 @@ export function BattleScene(props: BattleSceneProps) {
                     <Canvas orthographic camera={{ position: [0, 1.45, 8], zoom: 65 }} dpr={[1, 1.5]} frameloop={props.paused ? 'demand' : 'always'} gl={{ antialias: true, alpha: true }} fallback={<ArenaArtwork />} onCreated={({ gl }) => {
                         gl.domElement.addEventListener('webglcontextlost', () => setContextLost(true), { once: true });
                     }}>
-                        <CombatWorld snapshot={snapshot} cue_refs={[left_cue_ref, right_cue_ref]} />
+                        <CombatWorld snapshot={snapshot} cue_refs={[left_cue_ref, right_cue_ref]} effects_enabled={props.particles_enabled} />
                     </Canvas>
                 </SceneBoundary>
             ) : <ArenaArtwork />}
