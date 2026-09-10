@@ -5,27 +5,30 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { GameHeader, GameFooter } from '@/components/game/GameUI';
 import { BattleArena } from '@/components/game/BattleArena';
+import { LegacyBattleArena } from '@/components/game/LegacyBattleArena';
 import { fetchRoomState } from '@/lib/signaling';
-import type { Quote, Room, RoomPlayer, User } from '@/types';
+import type { ApiEnvelope, Quote, Room, RoomPlayer, RoomSessionData, User } from '@/types';
 
-interface RoomData {
+interface LegacyRoomData {
   room: Room;
   quote: Quote | null;
   players: (RoomPlayer & { username: string })[];
   host: User;
+  player_id: string;
+  username: string;
 }
 
 export default function BattlePage({ params }: { params: Promise<{ code: string }> }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [roomData, setRoomData] = useState<RoomData | null>(null);
-  const [playerId, setPlayerId] = useState<string | null>(null);
-  const [username, setUsername] = useState('');
+  const [room_session, setRoomSession] = useState<RoomSessionData | null>(null);
+  const [legacy_room, setLegacyRoom] = useState<LegacyRoomData | null>(null);
 
   useEffect(() => {
     const init = async () => {
-      const { code } = await params;
+      const { code: raw_code } = await params;
+      const code = raw_code.trim().toUpperCase();
       const savedUsername = localStorage.getItem('typeracer-username')?.trim();
 
       if (!savedUsername) {
@@ -34,40 +37,50 @@ export default function BattlePage({ params }: { params: Promise<{ code: string 
       }
 
       try {
-        let ownPlayerId = localStorage.getItem(`typeracer-room-user-${code}`);
-        if (!ownPlayerId) {
-          const joinResponse = await fetch(`/api/rooms/${code}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'join', username: savedUsername }),
-          });
-          const joinData = await joinResponse.json();
-          if (!joinResponse.ok) {
-            setError(joinData.error || 'Unable to join battle');
+        if (process.env.NEXT_PUBLIC_GAME_PROTOCOL_VERSION === '1') {
+          let player_id = localStorage.getItem(`typeracer-room-user-${code}`);
+          if (!player_id) {
+            const join_response = await fetch(`/api/rooms/${code}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'join', username: savedUsername }),
+            });
+            const join_data = await join_response.json();
+            if (!join_response.ok || typeof join_data.userId !== 'string') {
+              setError(join_data.error || 'Unable to join battle');
+              return;
+            }
+            player_id = join_data.userId;
+            localStorage.setItem(`typeracer-room-user-${code}`, player_id as string);
+          }
+          if (!player_id) {
+            setError('Unable to identify this player');
             return;
           }
-          ownPlayerId = joinData.userId;
-          if (typeof ownPlayerId !== 'string') {
-            setError('Unable to join battle');
+          const data = await fetchRoomState(code);
+          if (!data) {
+            setError('Battle not found');
             return;
           }
-          localStorage.setItem(`typeracer-room-user-${code}`, ownPlayerId);
-        }
-
-        const data = await fetchRoomState(code);
-        if (!data) {
-          setError('Battle not found');
+          setLegacyRoom({ room: data.room, quote: data.quote as Quote | null, players: data.players ?? [], host: data.host, player_id, username: savedUsername });
           return;
         }
-
-        setRoomData({
-          room: data.room,
-          quote: data.quote as Quote | null,
-          players: data.players || [],
-          host: data.host,
-        });
-        setUsername(savedUsername);
-        setPlayerId(ownPlayerId);
+        let response = await fetch(`/api/v2/rooms/${code}/token`, { method: 'POST' });
+        let envelope = await response.json() as ApiEnvelope<RoomSessionData>;
+        if (!response.ok || !envelope.data) {
+          response = await fetch(`/api/v2/rooms/${code}/join`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: savedUsername }),
+          });
+          envelope = await response.json() as ApiEnvelope<RoomSessionData>;
+        }
+        if (!response.ok || !envelope.data) {
+          setError(envelope.message || 'Unable to join battle');
+          return;
+        }
+        sessionStorage.setItem(`typeracer-room-session-${code}`, JSON.stringify(envelope.data));
+        setRoomSession(envelope.data);
       } catch {
         setError('Failed to load battle');
       } finally {
@@ -84,24 +97,26 @@ export default function BattlePage({ params }: { params: Promise<{ code: string 
     );
   }
 
-  if (error || !roomData) {
+  if (error || (!room_session && !legacy_room)) {
     return (
       <div className="app-shell"><GameHeader active="battle" /><main id="main" className="state-page"><p className="eyebrow">CONNECTION UNSUCCESSFUL</p><h1>Unable to enter this battle.</h1><p className="muted" role="alert">{error || 'Battle not found'}. Check your invitation or create a new room.</p><Link href="/" className="button button-primary">Back to lobby</Link></main><GameFooter /></div>
     );
   }
 
-  const { room, players } = roomData;
-  const isHost = room.hostId === playerId;
-  const opponent = players.find((player) => player.userId !== playerId);
-  const opponentUsername = opponent?.username || 'Opponent';
+  if (legacy_room) {
+    const opponent = legacy_room.players.find((player) => player.userId !== legacy_room.player_id);
+    return <LegacyBattleArena room_code={legacy_room.room.code} is_host={legacy_room.room.hostId === legacy_room.player_id} user_id={legacy_room.player_id} username={legacy_room.username} opponent_username={opponent?.username ?? 'Opponent'} />;
+  }
+
+  if (!room_session) return null;
 
   return (
     <BattleArena
-      roomCode={room.code}
-      isHost={isHost}
-      userId={playerId || ''}
-      username={username}
-      opponentUsername={opponentUsername}
+      roomCode={room_session.room.code}
+      isHost={room_session.role === 'host'}
+      userId={room_session.player.user_id}
+      username={room_session.player.username}
+      joinToken={room_session.join_token}
     />
   );
 }

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes } from 'react';
 
-export function GameHeader({ active = 'play' }: { active?: 'play' | 'stats' | 'battle' }) {
+export function GameHeader({ active = 'play' }: { active?: 'play' | 'stats' | 'battle' | 'settings' }) {
     return (
         <header className="game-header">
             <a className="skip-link" href="#main">Skip to content</a>
@@ -15,6 +15,7 @@ export function GameHeader({ active = 'play' }: { active?: 'play' | 'stats' | 'b
                 <nav aria-label="Main navigation">
                     <Link href="/" aria-current={active === 'play' ? 'page' : undefined}>Play</Link>
                     <Link href="/stats" aria-current={active === 'stats' ? 'page' : undefined}>Combat record</Link>
+                    <Link href="/settings" aria-current={active === 'settings' ? 'page' : undefined}>Settings</Link>
                 </nav>
                 <span className="header-tag">1V1 · TYPING ARENA</span>
             </div>

@@ -23,8 +23,8 @@ export function useLocalStats() {
   }, []);
 
   const addMatch = useCallback(
-    async (won: boolean, wpm: number, accuracy: number, durationMs: number, opponentName: string) => {
-      const newStats = await recordMatch(won, wpm, accuracy, durationMs, opponentName);
+    async (match_id: string, won: boolean, wpm: number, accuracy: number, duration_ms: number, opponent_name: string) => {
+      const newStats = await recordMatch(match_id, won, wpm, accuracy, duration_ms, opponent_name);
       setStats(newStats);
       return newStats;
     },

@@ -11,16 +11,38 @@ export async function getUser(username: string): Promise<User | null> {
 export async function createUser(username: string): Promise<User> {
   const result = await sql`
     INSERT INTO users (username) VALUES (${username})
-    ON CONFLICT (username) DO UPDATE SET last_seen = NOW()
     RETURNING *
   `;
   return toUser(result[0]);
+}
+
+export async function upsertGuestUser(user_id: string, username: string): Promise<User> {
+  const result = await sql`
+    INSERT INTO users (id, username) VALUES (${user_id}, ${username})
+    ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, last_seen = NOW()
+    RETURNING *
+  `;
+  return toUser(result[0]);
+}
+
+export async function getUserById(user_id: string): Promise<User | null> {
+  const result = await sql`SELECT * FROM users WHERE id = ${user_id}`;
+  return result[0] ? toUser(result[0]) : null;
 }
 
 export async function createRoom(hostId: string, quoteId: string): Promise<Room> {
   const code = generateRoomCode();
   const result = await sql`
     INSERT INTO rooms (code, host_id, quote_id) VALUES (${code}, ${hostId}, ${quoteId})
+    RETURNING *
+  `;
+  return toRoom(result[0]);
+}
+
+export async function createRoomV2(host_id: string, difficulty: number): Promise<Room> {
+  const code = generateRoomCode();
+  const result = await sql`
+    INSERT INTO rooms (code, host_id, difficulty) VALUES (${code}, ${host_id}, ${difficulty})
     RETURNING *
   `;
   return toRoom(result[0]);
@@ -178,7 +200,7 @@ function toUser(row: Record<string, unknown>, prefix = ''): User {
 function toRoom(row: Record<string, unknown>): Room {
   return {
     id: String(row.id), code: String(row.code), hostId: String(row.host_id),
-    status: row.status as Room['status'], quoteId: row.quote_id ? String(row.quote_id) : null,
+    status: row.status as Room['status'], difficulty: Number(row.difficulty ?? 2), quoteId: row.quote_id ? String(row.quote_id) : null,
     createdAt: String(row.created_at), startedAt: row.started_at ? String(row.started_at) : null,
     finishedAt: row.finished_at ? String(row.finished_at) : null,
     signalingOffer: row.signaling_offer as Room['signalingOffer'],
