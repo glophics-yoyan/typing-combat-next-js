@@ -189,9 +189,9 @@ h3 { font-weight: 600; }
 .quote-window { height: 112px; overflow-y: auto; scroll-behavior: auto; position: relative; border-bottom: 1px solid var(--border); padding: 4px 0 18px; margin-bottom: 18px; scrollbar-width: thin; scrollbar-color: #40596e transparent; }
 .quote-text { font-family: var(--font-mono); font-size: clamp(18px, 2vw, 23px); line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
 .quote-char.correct { color: var(--primary); }
+.quote-char.incorrect { color: var(--danger); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
 .quote-char.pending { color: #a1adbb; }
 .quote-char.current { color: #07141b; background: var(--primary); border-radius: 2px; box-shadow: 0 2px 0 var(--primary); }
-.has-mistake .quote-char.current { background: var(--danger); box-shadow: 0 2px 0 var(--danger); }
 .typing-entry input { font-family: var(--font-mono); font-size: 16px; }
 .typing-entry { margin-top: 4px; }
 .typing-feedback { min-height: 23px; padding-top: 8px; font-size: 11px; color: var(--muted-foreground); }

@@ -14,6 +14,7 @@ interface TypingInterfaceProps {
 export function TypingInterface({ gameState: game_state, onKeystroke, disabled = false }: TypingInterfaceProps) {
     const input_ref = useRef<HTMLInputElement>(null);
     const [has_mistake, setHasMistake] = useState(false);
+    const [mistake_positions, setMistakePositions] = useState<Set<number>>(() => new Set());
     const [focused, setFocused] = useState(false);
     const can_type = game_state.status === 'active' && !disabled;
     const quote = game_state.quote;
@@ -35,13 +36,13 @@ export function TypingInterface({ gameState: game_state, onKeystroke, disabled =
     const expected_char = quote.text[game_state.myState.position];
     const feedback = !can_type
         ? disabled ? 'Waiting for the connection. Typing is temporarily unavailable.' : 'Get ready. Your typing field activates when the countdown ends.'
-        : has_mistake ? 'Incorrect key. Type ' + (expected_char === ' ' ? 'a space' : '“' + expected_char + '”') + ' to continue.'
+        : has_mistake ? 'Incorrect letter marked. Keep typing—the cursor has moved on.'
         : focused ? 'Typing armed · Match the highlighted character. No backspace needed.' : 'Click the typing field or press Tab to resume.';
 
     return (
         <Panel className={'typing-panel' + (has_mistake ? ' has-mistake' : '')}>
             <div className="panel-topline"><span className="eyebrow">TYPE TO ATTACK</span><span className="micro-label">PRECISION = POWER</span></div>
-            <QuoteDisplay quote={quote} position={game_state.myState.position} />
+            <QuoteDisplay quote={quote} position={game_state.myState.position} mistake_positions={mistake_positions} />
             <div className="field typing-entry">
                 <label htmlFor="typing-input">Your typing field</label>
                 <input
@@ -54,10 +55,24 @@ export function TypingInterface({ gameState: game_state, onKeystroke, disabled =
                         const value = event.currentTarget.value;
                         event.currentTarget.value = '';
                         if (!value || expected_char === undefined) return;
-                        const char = value[value.length - 1];
-                        const is_correct = char === expected_char;
-                        setHasMistake(!is_correct);
-                        onKeystroke(char, is_correct);
+                        const start_position = game_state.myState.position;
+                        const new_mistake_positions: number[] = [];
+                        let last_is_correct = true;
+
+                        Array.from(value).forEach((char, index) => {
+                            const position = start_position + index;
+                            const target_char = quote.text[position];
+                            if (target_char === undefined) return;
+                            const is_correct = char === target_char;
+                            if (!is_correct) new_mistake_positions.push(position);
+                            last_is_correct = is_correct;
+                            onKeystroke(char, is_correct);
+                        });
+
+                        if (new_mistake_positions.length > 0) {
+                            setMistakePositions((current_positions) => new Set([...current_positions, ...new_mistake_positions]));
+                        }
+                        setHasMistake(!last_is_correct);
                     }}
                     onPaste={(event) => event.preventDefault()}
                     onFocus={() => setFocused(true)}

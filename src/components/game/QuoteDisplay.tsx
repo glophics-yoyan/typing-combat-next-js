@@ -6,9 +6,10 @@ import type { Quote } from '@/types';
 interface QuoteDisplayProps {
     quote: Quote;
     position: number;
+    mistake_positions: ReadonlySet<number>;
 }
 
-export function QuoteDisplay({ quote, position }: QuoteDisplayProps) {
+export function QuoteDisplay({ quote, position, mistake_positions }: QuoteDisplayProps) {
     const viewport_ref = useRef<HTMLDivElement>(null);
     const current_ref = useRef<HTMLSpanElement>(null);
 
@@ -32,7 +33,13 @@ export function QuoteDisplay({ quote, position }: QuoteDisplayProps) {
         <div ref={viewport_ref} className="quote-window" tabIndex={0} role="region" aria-label="Battle quote">
             <p className="quote-text">
                 {quote.text.split('').map((char, index) => (
-                    <span key={index} ref={index === position ? current_ref : undefined} className={'quote-char ' + (index < position ? 'correct' : index === position ? 'current' : 'pending')}>{char}</span>
+                    <span
+                        key={index}
+                        ref={index === position ? current_ref : undefined}
+                        className={'quote-char ' + (index < position ? mistake_positions.has(index) ? 'incorrect' : 'correct' : index === position ? 'current' : 'pending')}
+                    >
+                        {char}
+                    </span>
                 ))}
             </p>
         </div>

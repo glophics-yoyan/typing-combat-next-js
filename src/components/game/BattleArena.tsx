@@ -100,7 +100,7 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
                                 <p className="invite-link">{invite_url}</p>
                                 <div className="divider"><span>PRE-FLIGHT CHECK</span></div>
                                 <Button className="full-width" onClick={handleReady} disabled={!connected || game_state.myState.isReady}>{game_state.myState.isReady ? 'Ready · Waiting for your rival' : 'Ready to battle'}<span aria-hidden="true">→</span></Button>
-                                <p className="lobby-hint">Type fast, stay accurate. Finish the quote first or reduce your opponent’s health to zero. Wrong keys lower accuracy; type the correct key to move on.</p>
+                                <p className="lobby-hint">Type fast, stay accurate. Finish the quote first or reduce your opponent’s health to zero. Wrong keys are marked and lower accuracy, but they will not stop your cursor.</p>
                             </Panel>
                         </div>
                         <Link href="/" className="text-link">← Leave room and return to lobby</Link>
