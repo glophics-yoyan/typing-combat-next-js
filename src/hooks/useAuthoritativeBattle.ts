@@ -261,7 +261,7 @@ function toPlayerState(player: BattlePlayer): PlayerState {
 function applyOptimisticInput(player: PlayerState, quote: Quote | null, entry: JournalEntry) {
     if (!quote || player.position >= quote.text.length) return;
     const is_correct = entry.character === quote.text[player.position];
-    player.position = Math.min(player.position + 1, quote.text.length);
+    if (is_correct) player.position = Math.min(player.position + 1, quote.text.length);
     player.totalKeystrokes += 1;
     player.correctKeystrokes += is_correct ? 1 : 0;
     player.accuracy = player.totalKeystrokes > 0 ? player.correctKeystrokes / player.totalKeystrokes : 1;

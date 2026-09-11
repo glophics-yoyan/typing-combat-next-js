@@ -36,7 +36,7 @@ export function QuoteDisplay({ quote, position, mistake_positions }: QuoteDispla
                     <span
                         key={index}
                         ref={index === position ? current_ref : undefined}
-                        className={'quote-char ' + (index < position ? mistake_positions.has(index) ? 'incorrect' : 'correct' : index === position ? 'current' : 'pending')}
+                        className={'quote-char ' + (index < position ? mistake_positions.has(index) ? 'incorrect' : 'correct' : index === position ? mistake_positions.has(index) ? 'current incorrect' : 'current' : 'pending')}
                     >
                         {char}
                     </span>

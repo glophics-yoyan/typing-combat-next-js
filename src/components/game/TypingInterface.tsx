@@ -37,8 +37,8 @@ export function TypingInterface({ gameState: game_state, onKeystroke, disabled =
     const expected_char = quote.text[game_state.myState.position];
     const feedback = !can_type
         ? disabled ? 'Waiting for the connection. Typing is temporarily unavailable.' : 'Get ready. Your typing field activates when the countdown ends.'
-        : has_mistake ? 'Incorrect letter marked. Keep typing—the cursor has moved on.'
-        : focused ? 'Typing armed · Match the highlighted character. Use Backspace to edit your entry.' : 'Click the typing field or press Tab to resume.';
+        : has_mistake ? 'Incorrect text. Use Backspace to erase it, then type the highlighted character.'
+        : focused ? 'Typing armed · Match the highlighted character.' : 'Click the typing field or press Tab to resume.';
 
     return (
         <Panel className={'typing-panel' + (has_mistake ? ' has-mistake' : '')}>
@@ -56,30 +56,52 @@ export function TypingInterface({ gameState: game_state, onKeystroke, disabled =
                         const input_event = event.nativeEvent as InputEvent;
                         const value = event.currentTarget.value;
                         const previous_value = input_value_ref.current;
+
+                        if (input_event.isComposing) return;
                         input_value_ref.current = value;
 
-                        if (input_event.isComposing || input_event.inputType.startsWith('delete')) return;
+                        if (input_event.inputType.startsWith('delete')) {
+                            const has_remaining_mistake = value.length > 0;
+                            setHasMistake(has_remaining_mistake);
+                            if (!has_remaining_mistake) {
+                                setMistakePositions((current_positions) => {
+                                    const next_positions = new Set(current_positions);
+                                    next_positions.delete(game_state.myState.position);
+                                    return next_positions;
+                                });
+                            }
+                            return;
+                        }
+
+                        if (previous_value) {
+                            setHasMistake(true);
+                            return;
+                        }
+
                         const inserted_value = input_event.data
                             ?? (value.startsWith(previous_value) ? value.slice(previous_value.length) : '');
                         if (!inserted_value || expected_char === undefined) return;
                         const start_position = game_state.myState.position;
-                        const new_mistake_positions: number[] = [];
-                        let last_is_correct = true;
+                        const inserted_characters = Array.from(inserted_value);
+                        let rejected_value = '';
 
-                        Array.from(inserted_value).forEach((char, index) => {
+                        for (const [index, char] of inserted_characters.entries()) {
                             const position = start_position + index;
                             const target_char = quote.text[position];
-                            if (target_char === undefined) return;
+                            if (target_char === undefined) break;
                             const is_correct = char === target_char;
-                            if (!is_correct) new_mistake_positions.push(position);
-                            last_is_correct = is_correct;
                             onKeystroke(char, is_correct);
-                        });
 
-                        if (new_mistake_positions.length > 0) {
-                            setMistakePositions((current_positions) => new Set([...current_positions, ...new_mistake_positions]));
+                            if (!is_correct) {
+                                rejected_value = inserted_characters.slice(index).join('');
+                                setMistakePositions((current_positions) => new Set([...current_positions, position]));
+                                break;
+                            }
                         }
-                        setHasMistake(!last_is_correct);
+
+                        event.currentTarget.value = rejected_value;
+                        input_value_ref.current = rejected_value;
+                        setHasMistake(Boolean(rejected_value));
                     }}
                     onPaste={(event) => event.preventDefault()}
                     onFocus={() => setFocused(true)}

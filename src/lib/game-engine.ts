@@ -52,7 +52,7 @@ export function processKeystroke(
     return gameState;
   }
 
-  const newPosition = Math.min(myState.position + 1, quote.text.length);
+  const newPosition = isCorrect ? Math.min(myState.position + 1, quote.text.length) : myState.position;
   const keystrokeTime = Date.now();
   const timeSinceStart = gameState.startTime ? keystrokeTime - gameState.startTime : 0;
 
