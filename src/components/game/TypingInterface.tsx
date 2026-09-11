@@ -13,6 +13,7 @@ interface TypingInterfaceProps {
 
 export function TypingInterface({ gameState: game_state, onKeystroke, disabled = false }: TypingInterfaceProps) {
     const input_ref = useRef<HTMLInputElement>(null);
+    const input_value_ref = useRef('');
     const [has_mistake, setHasMistake] = useState(false);
     const [mistake_positions, setMistakePositions] = useState<Set<number>>(() => new Set());
     const [focused, setFocused] = useState(false);
@@ -37,7 +38,7 @@ export function TypingInterface({ gameState: game_state, onKeystroke, disabled =
     const feedback = !can_type
         ? disabled ? 'Waiting for the connection. Typing is temporarily unavailable.' : 'Get ready. Your typing field activates when the countdown ends.'
         : has_mistake ? 'Incorrect letter marked. Keep typing—the cursor has moved on.'
-        : focused ? 'Typing armed · Match the highlighted character. No backspace needed.' : 'Click the typing field or press Tab to resume.';
+        : focused ? 'Typing armed · Match the highlighted character. Use Backspace to edit your entry.' : 'Click the typing field or press Tab to resume.';
 
     return (
         <Panel className={'typing-panel' + (has_mistake ? ' has-mistake' : '')}>
@@ -51,15 +52,21 @@ export function TypingInterface({ gameState: game_state, onKeystroke, disabled =
                     type="text"
                     disabled={!can_type}
                     onInput={(event) => {
-                        if (!can_type || (event.nativeEvent as InputEvent).isComposing) return;
+                        if (!can_type) return;
+                        const input_event = event.nativeEvent as InputEvent;
                         const value = event.currentTarget.value;
-                        event.currentTarget.value = '';
-                        if (!value || expected_char === undefined) return;
+                        const previous_value = input_value_ref.current;
+                        input_value_ref.current = value;
+
+                        if (input_event.isComposing || input_event.inputType.startsWith('delete')) return;
+                        const inserted_value = input_event.data
+                            ?? (value.startsWith(previous_value) ? value.slice(previous_value.length) : '');
+                        if (!inserted_value || expected_char === undefined) return;
                         const start_position = game_state.myState.position;
                         const new_mistake_positions: number[] = [];
                         let last_is_correct = true;
 
-                        Array.from(value).forEach((char, index) => {
+                        Array.from(inserted_value).forEach((char, index) => {
                             const position = start_position + index;
                             const target_char = quote.text[position];
                             if (target_char === undefined) return;
