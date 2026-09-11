@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { GameHeader, GameFooter } from '@/components/game/GameUI';
+import { Button, GameHeader, GameFooter } from '@/components/game/GameUI';
 import { BattleArena } from '@/components/game/BattleArena';
 import { LegacyBattleArena } from '@/components/game/LegacyBattleArena';
 import { fetchRoomState } from '@/lib/signaling';
@@ -18,25 +18,37 @@ interface LegacyRoomData {
   username: string;
 }
 
+const ROOM_INITIALIZATION_TIMEOUT_MS = 15000;
+
 export default function BattlePage({ params }: { params: Promise<{ code: string }> }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [room_session, setRoomSession] = useState<RoomSessionData | null>(null);
   const [legacy_room, setLegacyRoom] = useState<LegacyRoomData | null>(null);
+  const [initialize_attempt, setInitializeAttempt] = useState(0);
 
   useEffect(() => {
+    const abort_controller = new AbortController();
+    const timeout = setTimeout(() => abort_controller.abort(), ROOM_INITIALIZATION_TIMEOUT_MS);
+    let active = true;
+
     const init = async () => {
-      const { code: raw_code } = await params;
-      const code = raw_code.trim().toUpperCase();
-      const savedUsername = localStorage.getItem('typeracer-username')?.trim();
-
-      if (!savedUsername) {
-        router.replace('/?join=' + encodeURIComponent(code));
-        return;
-      }
-
       try {
+        setLoading(true);
+        setError(null);
+        setRoomSession(null);
+        setLegacyRoom(null);
+
+        const { code: raw_code } = await params;
+        const code = raw_code.trim().toUpperCase();
+        const savedUsername = localStorage.getItem('typeracer-username')?.trim();
+
+        if (!savedUsername) {
+          router.replace('/?join=' + encodeURIComponent(code));
+          return;
+        }
+
         if (process.env.NEXT_PUBLIC_GAME_PROTOCOL_VERSION === '1') {
           let player_id = localStorage.getItem(`typeracer-room-user-${code}`);
           if (!player_id) {
@@ -44,6 +56,7 @@ export default function BattlePage({ params }: { params: Promise<{ code: string 
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ action: 'join', username: savedUsername }),
+              signal: abort_controller.signal,
             });
             const join_data = await join_response.json();
             if (!join_response.ok || typeof join_data.userId !== 'string') {
@@ -57,7 +70,7 @@ export default function BattlePage({ params }: { params: Promise<{ code: string 
             setError('Unable to identify this player');
             return;
           }
-          const data = await fetchRoomState(code);
+          const data = await fetchRoomState(code, abort_controller.signal);
           if (!data) {
             setError('Battle not found');
             return;
@@ -65,13 +78,17 @@ export default function BattlePage({ params }: { params: Promise<{ code: string 
           setLegacyRoom({ room: data.room, quote: data.quote as Quote | null, players: data.players ?? [], host: data.host, player_id, username: savedUsername });
           return;
         }
-        let response = await fetch(`/api/v2/rooms/${code}/token`, { method: 'POST' });
+        let response = await fetch(`/api/v2/rooms/${code}/token`, {
+          method: 'POST',
+          signal: abort_controller.signal,
+        });
         let envelope = await response.json() as ApiEnvelope<RoomSessionData>;
         if (!response.ok || !envelope.data) {
           response = await fetch(`/api/v2/rooms/${code}/join`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: savedUsername }),
+            signal: abort_controller.signal,
           });
           envelope = await response.json() as ApiEnvelope<RoomSessionData>;
         }
@@ -81,15 +98,25 @@ export default function BattlePage({ params }: { params: Promise<{ code: string 
         }
         sessionStorage.setItem(`typeracer-room-session-${code}`, JSON.stringify(envelope.data));
         setRoomSession(envelope.data);
-      } catch {
-        setError('Failed to load battle');
+      } catch (caught_error) {
+        if (!active) return;
+        setError(caught_error instanceof DOMException && caught_error.name === 'AbortError'
+          ? 'Battle setup timed out. Check the game server and try again.'
+          : 'Failed to load battle');
       } finally {
-        setLoading(false);
+        clearTimeout(timeout);
+        if (active) setLoading(false);
       }
     };
 
-    init();
-  }, [params, router]);
+    void init();
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+      abort_controller.abort();
+    };
+  }, [initialize_attempt, params, router]);
 
   if (loading) {
     return (
@@ -99,7 +126,7 @@ export default function BattlePage({ params }: { params: Promise<{ code: string 
 
   if (error || (!room_session && !legacy_room)) {
     return (
-      <div className="app-shell"><GameHeader active="battle" /><main id="main" className="state-page"><p className="eyebrow">CONNECTION UNSUCCESSFUL</p><h1>Unable to enter this battle.</h1><p className="muted" role="alert">{error || 'Battle not found'}. Check your invitation or create a new room.</p><Link href="/" className="button button-primary">Back to lobby</Link></main><GameFooter /></div>
+      <div className="app-shell"><GameHeader active="battle" /><main id="main" className="state-page"><p className="eyebrow">CONNECTION UNSUCCESSFUL</p><h1>Unable to enter this battle.</h1><p className="muted" role="alert">{error || 'Battle not found. Check your invitation or create a new room.'}</p><div className="actions"><Button onClick={() => setInitializeAttempt((attempt) => attempt + 1)}>Retry</Button><Link href="/" className="button button-secondary">Back to lobby</Link></div></main><GameFooter /></div>
     );
   }
 

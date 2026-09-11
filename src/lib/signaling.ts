@@ -217,8 +217,8 @@ export interface RoomData {
   host: User;
 }
 
-export async function fetchRoomState(roomCode: string): Promise<RoomData | null> {
-  const res = await fetch(`/api/rooms/${roomCode}`);
+export async function fetchRoomState(roomCode: string, signal?: AbortSignal): Promise<RoomData | null> {
+  const res = await fetch(`/api/rooms/${roomCode}`, { signal });
   if (!res.ok) return null;
   return res.json();
 }

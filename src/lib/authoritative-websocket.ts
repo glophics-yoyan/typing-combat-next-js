@@ -12,8 +12,11 @@ type MessageHandler = (message: AuthoritativeEvent) => void;
 type ConnectionHandler = (connected: boolean) => void;
 type ErrorHandler = (error: Error) => void;
 
+const INITIAL_SNAPSHOT_TIMEOUT_MS = 10000;
+
 export class AuthoritativeWebSocket {
     private socket: WebSocket | null = null;
+    private initial_snapshot_timer: ReturnType<typeof setTimeout> | null = null;
     private pending_messages: object[] = [];
     private message_handlers = new Set<MessageHandler>();
     private connection_handlers = new Set<ConnectionHandler>();
@@ -29,12 +32,18 @@ export class AuthoritativeWebSocket {
             return;
         }
         this.socket = new WebSocket(websocket_url);
+        this.initial_snapshot_timer = setTimeout(() => {
+            if (this.destroyed) return;
+            this.notifyError(new Error('Realtime server did not finish joining within 10 seconds.'));
+            this.socket?.close(4000, 'Initial room snapshot timed out');
+        }, INITIAL_SNAPSHOT_TIMEOUT_MS);
         this.socket.addEventListener('open', () => {
             this.sendRaw({ type: 'join', protocol_version: 2, join_token: this.join_token });
             this.flush();
         });
         this.socket.addEventListener('message', (event) => this.handleMessage(event.data));
         this.socket.addEventListener('close', () => {
+            this.clearInitialSnapshotTimer();
             if (!this.destroyed) this.connection_handlers.forEach((handler) => handler(false));
         });
         this.socket.addEventListener('error', () => {
@@ -71,6 +80,7 @@ export class AuthoritativeWebSocket {
 
     destroy() {
         this.destroyed = true;
+        this.clearInitialSnapshotTimer();
         this.socket?.close(1000, 'Battle closed');
         this.socket = null;
         this.pending_messages = [];
@@ -97,6 +107,7 @@ export class AuthoritativeWebSocket {
         try {
             const message = JSON.parse(data) as AuthoritativeEvent;
             if (message.type === 'room_snapshot') {
+                this.clearInitialSnapshotTimer();
                 this.connection_handlers.forEach((handler) => handler(true));
             }
             if (message.type === 'error') {
@@ -113,5 +124,11 @@ export class AuthoritativeWebSocket {
 
     private notifyError(error: Error) {
         this.error_handlers.forEach((handler) => handler(error));
+    }
+
+    private clearInitialSnapshotTimer() {
+        if (!this.initial_snapshot_timer) return;
+        clearTimeout(this.initial_snapshot_timer);
+        this.initial_snapshot_timer = null;
     }
 }

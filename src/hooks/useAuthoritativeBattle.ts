@@ -153,7 +153,7 @@ export function useAuthoritativeBattle({ room_code, user_id, join_token, on_game
             }
             else {
                 replay_on_snapshot_ref.current = true;
-                setError('Connection lost. Restoring your battle…');
+                setError((current_error) => current_error ?? 'Connection lost. Restoring your battle…');
                 if (!reconnect_timer_ref.current) {
                     reconnect_timer_ref.current = setTimeout(() => {
                         reconnect_timer_ref.current = null;
