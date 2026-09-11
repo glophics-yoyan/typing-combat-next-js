@@ -95,6 +95,15 @@ export interface MatchResult {
   participants: BattlePlayer[];
 }
 
+export interface RestBattleData {
+  snapshot: RoomSnapshot;
+  match_result: MatchResult | null;
+  rematch_status: {
+    votes: Record<string, boolean>;
+    expires_at: number | null;
+  };
+}
+
 export interface RoomSessionData {
   room: {
     id: string;

@@ -2,13 +2,13 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, start the sibling `typeracer-api` WebSocket service. Then configure this app:
+First, start the sibling `typeracer-api` REST service. Then configure this app:
 
 ```bash
 copy .env.example .env
 ```
 
-Set `DATABASE_URL`, `GUEST_SESSION_SECRET`, and `ROOM_TOKEN_SECRET`. The two secrets must each contain at least 32 characters, and `ROOM_TOKEN_SECRET` must match the realtime API. Apply the authoritative battle schema before starting either service:
+Set `DATABASE_URL`, `GUEST_SESSION_SECRET`, and `ROOM_TOKEN_SECRET`. The two secrets must each contain at least 32 characters, and `ROOM_TOKEN_SECRET` must match the battle API. Apply the authoritative battle schema before starting either service:
 
 ```bash
 npm run db:migrate
@@ -30,7 +30,7 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-For production, run `typeracer-api` as one paid, always-on Render service. Set `NEXT_PUBLIC_WEBSOCKET_URL=wss://your-render-service.onrender.com/ws` and `NEXT_PUBLIC_GAME_PROTOCOL_VERSION=2` in this Vercel project, then redeploy the frontend so the public values are included in its build.
+For production, deploy `typeracer-api` as an Express API on Vercel. Set `NEXT_PUBLIC_API_URL=https://typeracer-api.vercel.app` and `NEXT_PUBLIC_GAME_PROTOCOL_VERSION=2` in this Vercel project, then redeploy the frontend so the public values are included in its build.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

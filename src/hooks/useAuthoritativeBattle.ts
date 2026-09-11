@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AuthoritativeWebSocket, type AuthoritativeEvent } from '@/lib/authoritative-websocket';
+import { AuthoritativeBattleApi, type AuthoritativeEvent } from '@/lib/authoritative-battle-api';
 import type { ApiEnvelope, BattlePlayer, GameState, MatchResult, PlayerState, Quote, RoomSessionData, RoomSnapshot } from '@/types';
 
 interface UseAuthoritativeBattleOptions {
@@ -32,7 +32,7 @@ export function useAuthoritativeBattle({ room_code, user_id, join_token, on_game
     const [connection_attempt, setConnectionAttempt] = useState(0);
     const [rematch_votes, setRematchVotes] = useState<Record<string, boolean>>({});
     const [active_join_token, setActiveJoinToken] = useState(join_token);
-    const websocket_ref = useRef<AuthoritativeWebSocket | null>(null);
+    const battle_api_ref = useRef<AuthoritativeBattleApi | null>(null);
     const sequence_ref = useRef(0);
     const acknowledged_sequence_ref = useRef(0);
     const match_id_ref = useRef<string | null>(null);
@@ -89,7 +89,7 @@ export function useAuthoritativeBattle({ room_code, user_id, join_token, on_game
             (entry) => entry.sequence > own_player.last_processed_sequence,
         ) ?? [];
         if (replay_on_snapshot_ref.current && snapshot.match_id && snapshot.phase === 'active') {
-            pending_entries.forEach((entry) => websocket_ref.current?.sendInput(entry.sequence, entry.character, entry.client_timestamp));
+            pending_entries.forEach((entry) => battle_api_ref.current?.sendInput(entry.sequence, entry.character, entry.client_timestamp));
             replay_on_snapshot_ref.current = false;
         }
 
@@ -138,11 +138,11 @@ export function useAuthoritativeBattle({ room_code, user_id, join_token, on_game
     }, [handleSnapshot, saveJournal, user_id]);
 
     useEffect(() => {
-        const websocket = new AuthoritativeWebSocket(active_join_token);
-        websocket_ref.current = websocket;
+        const battle_api = new AuthoritativeBattleApi(room_code, active_join_token);
+        battle_api_ref.current = battle_api;
         replay_on_snapshot_ref.current = true;
-        const unsubscribe_message = websocket.onMessage(handleEvent);
-        const unsubscribe_connection = websocket.onConnectionChange((is_connected) => {
+        const unsubscribe_message = battle_api.onMessage(handleEvent);
+        const unsubscribe_connection = battle_api.onConnectionChange((is_connected) => {
             setConnected(is_connected);
             if (is_connected) {
                 if (reconnect_timer_ref.current) {
@@ -162,7 +162,7 @@ export function useAuthoritativeBattle({ room_code, user_id, join_token, on_game
                 }
             }
         });
-        const unsubscribe_error = websocket.onError((caught_error) => {
+        const unsubscribe_error = battle_api.onError((caught_error) => {
             setError(caught_error.message);
             const error_code = (caught_error as Error & { code?: string }).code;
             if (error_code === 'INVALID_JOIN_TOKEN') {
@@ -186,12 +186,12 @@ export function useAuthoritativeBattle({ room_code, user_id, join_token, on_game
                 }
             }
         });
-        websocket.initialize();
+        battle_api.initialize();
         return () => {
             unsubscribe_message();
             unsubscribe_connection();
             unsubscribe_error();
-            websocket.destroy();
+            battle_api.destroy();
             if (reconnect_timer_ref.current) {
                 clearTimeout(reconnect_timer_ref.current);
                 reconnect_timer_ref.current = null;
@@ -217,7 +217,7 @@ export function useAuthoritativeBattle({ room_code, user_id, join_token, on_game
         journal_ref.current ??= { match_id: match_id_ref.current, entries: [] };
         journal_ref.current.entries.push(entry);
         saveJournal();
-        websocket_ref.current?.sendInput(sequence, character, entry.client_timestamp);
+        battle_api_ref.current?.sendInput(sequence, character, entry.client_timestamp);
         setGameState((current_state) => {
             if (!current_state || current_state.status !== 'active') return current_state;
             const my_state = { ...current_state.myState };
@@ -235,8 +235,8 @@ export function useAuthoritativeBattle({ room_code, user_id, join_token, on_game
         opponentUsername: opponent_username,
         rematchVotes: rematch_votes,
         handleKeystroke,
-        handleReady: () => websocket_ref.current?.sendReady(),
-        requestRematch: () => websocket_ref.current?.sendRematch(true),
+        handleReady: () => battle_api_ref.current?.sendReady(),
+        requestRematch: () => battle_api_ref.current?.sendRematch(true),
         retryConnection: () => setConnectionAttempt((attempt) => attempt + 1),
     };
 }
