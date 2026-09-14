@@ -39,6 +39,18 @@ test('both sides trigger combos and impact exactly once', () => {
     }
 });
 
+test('an inert practice target receives impacts without producing attacks', () => {
+    const timeline = createTimeline();
+    const snapshot = createSnapshot();
+    advanceTimeline(timeline, snapshot, 0);
+    snapshot.players[0].position = timeline.words[0].end;
+    advanceTimeline(timeline, snapshot, .1);
+    advanceTimeline(timeline, snapshot, .4);
+    assert.equal(timeline.fighters[0].attack.kind, 'jab');
+    assert.equal(timeline.fighters[1].attack, null);
+    assert.equal(timeline.fighters[1].hits, 1);
+});
+
 test('network bursts retain at most two pending actions', () => {
     const timeline = createTimeline();
     const snapshot = createSnapshot();

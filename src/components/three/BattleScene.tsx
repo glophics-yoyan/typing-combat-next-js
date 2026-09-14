@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { ArenaArtwork } from '@/components/game/GameUI';
 import { CombatFighter, type FighterRig } from './CombatFighter';
 import { CombatEffects, type EffectRig } from './CombatEffects';
+import { PunchingBag, type PunchingBagRig } from './PunchingBag';
 import { ATTACK_LABELS, IMPACT_PHASE, advanceTimeline, attackPhase, createTimeline, fighterPositions, getWordAttacks, strikeEnvelope, type CombatSnapshot } from './combat-timeline';
 
 interface BattleSceneProps {
@@ -21,11 +22,13 @@ interface BattleSceneProps {
     my_hp: number;
     opponent_hp: number;
     particles_enabled: boolean;
+    opponent_kind?: 'fighter' | 'punching_bag';
 }
 
-function CombatWorld({ snapshot, cue_refs, effects_enabled }: { snapshot: CombatSnapshot; cue_refs: [RefObject<HTMLSpanElement | null>, RefObject<HTMLSpanElement | null>]; effects_enabled: boolean }) {
+function CombatWorld({ snapshot, cue_refs, effects_enabled, opponent_kind }: { snapshot: CombatSnapshot; cue_refs: [RefObject<HTMLSpanElement | null>, RefObject<HTMLSpanElement | null>]; effects_enabled: boolean; opponent_kind: 'fighter' | 'punching_bag' }) {
     const left_ref = useRef<FighterRig>(null);
     const right_ref = useRef<FighterRig>(null);
+    const bag_ref = useRef<PunchingBagRig>(null);
     const left_effect_ref = useRef<EffectRig>(null);
     const right_effect_ref = useRef<EffectRig>(null);
     const timeline_ref = useRef(createTimeline());
@@ -110,7 +113,8 @@ function CombatWorld({ snapshot, cue_refs, effects_enabled }: { snapshot: Combat
 
             const cue = cue_refs[side].current;
             if (cue) {
-                cue.textContent = snapshot.status === 'finished' ? won ? 'VICTORY POSE' : 'DEFEATED'
+                cue.textContent = opponent_kind === 'punching_bag' && side === 1 ? 'TARGET'
+                    : snapshot.status === 'finished' ? won ? 'VICTORY POSE' : 'DEFEATED'
                     : !snapshot.connected ? 'CONNECTION LOST'
                     : attack ? ATTACK_LABELS[attack.kind] : 'GUARD';
             }
@@ -182,6 +186,16 @@ function CombatWorld({ snapshot, cue_refs, effects_enabled }: { snapshot: Combat
                 });
             }
         });
+        const bag = bag_ref.current;
+        if (opponent_kind === 'punching_bag' && bag) {
+            const hit_age = now - timeline.fighters[1].hit_at;
+            const impact = live && hit_age >= 0 && hit_age < .65 ? 1 - hit_age / .65 : 0;
+            bag.root.position.set(positions[1], 0, 0);
+            bag.target.rotation.z = -Math.sin(hit_age * 24) * impact * .2;
+            bag.target.position.x = impact * .08;
+            bag.padding.emissive.set(impact > .55 ? '#ffb0a9' : '#000000');
+            bag.padding.emissiveIntensity = impact * .8;
+        }
         const shake = live ? Math.max(...timeline.fighters.map((fighter) => ['kick', 'throw'].includes(fighter.hit_kind) ? Math.max(0, 1 - (now - fighter.hit_at) / .15) : 0)) : 0;
         camera.position.x = Math.sin(now * 95) * shake * .035;
         camera.position.y = 1.45 + Math.cos(now * 83) * shake * .025;
@@ -196,18 +210,20 @@ function CombatWorld({ snapshot, cue_refs, effects_enabled }: { snapshot: Combat
             <gridHelper args={[18, 30, '#42627c', '#243d55']} position={[0, -.02, 0]} />
             <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -.03, 0]}><planeGeometry args={[18, 14]} /><meshStandardMaterial color="#122337" roughness={.8} /></mesh>
             <CombatFighter ref={left_ref} color="#68e4ef" mirrored={false} />
-            <CombatFighter ref={right_ref} color="#ff857c" mirrored />
+            {opponent_kind === 'fighter'
+                ? <CombatFighter ref={right_ref} color="#ff857c" mirrored />
+                : <><group visible={false}><CombatFighter ref={right_ref} color="#ff857c" mirrored /></group><PunchingBag ref={bag_ref} /></>}
             <CombatEffects ref={left_effect_ref} color="#68e4ef" />
             <CombatEffects ref={right_effect_ref} color="#ff857c" />
         </>
     );
 }
 
-class sceneBoundary extends Component<{ children: ReactNode; onFailure: () => void }, { failed: boolean }> {
+class sceneBoundary extends Component<{ children: ReactNode; fallback: ReactNode; onFailure: () => void }, { failed: boolean }> {
     state = { failed: false };
     static getDerivedStateFromError() { return { failed: true }; }
     componentDidCatch() { this.props.onFailure(); }
-    render() { return this.state.failed ? <ArenaArtwork /> : this.props.children; }
+    render() { return this.state.failed ? this.props.fallback : this.props.children; }
 }
 const SceneBoundary = sceneBoundary;
 
@@ -219,6 +235,9 @@ export function BattleScene(props: BattleSceneProps) {
     const baseline_ref = useRef({ quote: '', connected: false, positions: [0, 0] });
     const cue_timers_ref = useRef<ReturnType<typeof setTimeout>[]>([]);
     const words = useMemo(() => getWordAttacks(props.quote_text), [props.quote_text]);
+    const opponent_kind = props.opponent_kind ?? 'fighter';
+    const completed_words = words.filter((word) => word.end <= props.my_position).length;
+    const fallback_artwork = <ArenaArtwork key={`${opponent_kind}-${completed_words}`} opponent_kind={opponent_kind} />;
     const snapshot: CombatSnapshot = {
         quote_text: props.quote_text, status: props.status, connected: props.connected, winner: props.winner, paused: props.paused,
         players: [
@@ -249,6 +268,11 @@ export function BattleScene(props: BattleSceneProps) {
         const reset = baseline.quote !== props.quote_text || baseline.connected !== props.connected;
         [left_cue_ref.current, right_cue_ref.current].forEach((cue, side) => {
             if (!cue) return;
+            if (opponent_kind === 'punching_bag' && side === 1) {
+                clearTimeout(cue_timers_ref.current[side]);
+                cue.textContent = 'TARGET';
+                return;
+            }
             const word = !reset ? words.filter((item) => item.end > baseline.positions[side] && item.end <= positions[side]).at(-1) : undefined;
             if (props.status === 'finished') {
                 clearTimeout(cue_timers_ref.current[side]);
@@ -263,7 +287,7 @@ export function BattleScene(props: BattleSceneProps) {
             } else if (reset || props.status !== 'active') cue.textContent = 'GUARD';
         });
         baseline_ref.current = { quote: props.quote_text, connected: props.connected, positions };
-    }, [render_3d, context_lost, props.my_position, props.opponent_position, props.quote_text, props.connected, props.status, props.winner, words]);
+    }, [render_3d, context_lost, props.my_position, props.opponent_position, props.quote_text, props.connected, props.status, props.winner, words, opponent_kind]);
 
     useEffect(() => {
         const timers = cue_timers_ref.current;
@@ -271,18 +295,18 @@ export function BattleScene(props: BattleSceneProps) {
     }, []);
 
     return (
-        <div className={'battle-scene anime-arena' + (props.status === 'finished' ? ' arena-finished' : '')} data-winner={props.winner} role="img" aria-label="Typing combat arena. Completed words trigger punches, kicks, and word projectiles.">
-            <div className="combat-scene-label"><span>WORD COMBO / JAB → CROSS → KICK → BURST</span><span>TYPE TO FIGHT</span></div>
+        <div className={'battle-scene anime-arena' + (props.status === 'finished' ? ' arena-finished' : '')} data-winner={props.winner} role="img" aria-label={opponent_kind === 'punching_bag' ? 'Solo typing practice arena with a reactive punching bag. Completed words trigger attacks.' : 'Typing combat arena. Completed words trigger punches, kicks, and word projectiles.'}>
+            <div className="combat-scene-label"><span>WORD COMBO / JAB → CROSS → KICK → BURST</span><span>{opponent_kind === 'punching_bag' ? 'TYPE TO TRAIN' : 'TYPE TO FIGHT'}</span></div>
             {render_3d && !context_lost ? (
-                <SceneBoundary onFailure={() => setContextLost(true)}>
-                    <Canvas orthographic camera={{ position: [0, 1.45, 8], zoom: 65 }} dpr={[1, 1.5]} frameloop={props.paused ? 'demand' : 'always'} gl={{ antialias: true, alpha: true }} fallback={<ArenaArtwork />} onCreated={({ gl }) => {
+                <SceneBoundary fallback={fallback_artwork} onFailure={() => setContextLost(true)}>
+                    <Canvas orthographic camera={{ position: [0, 1.45, 8], zoom: 65 }} dpr={[1, 1.5]} frameloop={props.paused ? 'demand' : 'always'} gl={{ antialias: true, alpha: true }} fallback={fallback_artwork} onCreated={({ gl }) => {
                         gl.domElement.addEventListener('webglcontextlost', () => setContextLost(true), { once: true });
                     }}>
-                        <CombatWorld snapshot={snapshot} cue_refs={[left_cue_ref, right_cue_ref]} effects_enabled={props.particles_enabled} />
+                        <CombatWorld snapshot={snapshot} cue_refs={[left_cue_ref, right_cue_ref]} effects_enabled={props.particles_enabled} opponent_kind={opponent_kind} />
                     </Canvas>
                 </SceneBoundary>
-            ) : <ArenaArtwork />}
-            <div className="combat-cues" aria-hidden="true"><span ref={left_cue_ref}>GUARD</span><span ref={right_cue_ref}>GUARD</span></div>
+            ) : fallback_artwork}
+            <div className="combat-cues" aria-hidden="true"><span ref={left_cue_ref}>GUARD</span><span ref={right_cue_ref}>{opponent_kind === 'punching_bag' ? 'TARGET' : 'GUARD'}</span></div>
         </div>
     );
 }

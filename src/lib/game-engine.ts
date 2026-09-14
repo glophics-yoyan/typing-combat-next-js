@@ -42,6 +42,26 @@ export function createInitialGameState(quote: Quote): GameState {
   };
 }
 
+export function createPracticeGameState(quote: Quote, start_time = Date.now() + COUNTDOWN_DURATION): GameState {
+  const game_state = createInitialGameState(quote);
+
+  return {
+    ...game_state,
+    opponentState: {
+      hp: STARTING_HP,
+      position: 0,
+      wpm: 0,
+      accuracy: 1,
+      lastKeystroke: start_time,
+      isReady: true,
+      totalKeystrokes: 0,
+      correctKeystrokes: 0,
+    },
+    status: 'countdown',
+    startTime: start_time,
+  };
+}
+
 export function processKeystroke(
   gameState: GameState,
   char: string,
@@ -173,6 +193,22 @@ export function beginActiveGame(gameState: GameState, startTime = Date.now()): G
     ...gameState,
     status: 'active',
     startTime,
+  };
+}
+
+export function advancePracticeCountdown(game_state: GameState, now = Date.now()): GameState {
+  if (game_state.status !== 'countdown' || !game_state.startTime || now < game_state.startTime) return game_state;
+  return beginActiveGame(game_state, game_state.startTime);
+}
+
+export function finishPracticeIfComplete(game_state: GameState, end_time = Date.now()): GameState {
+  if (game_state.status !== 'active' || !game_state.quote || game_state.myState.position < game_state.quote.text.length) return game_state;
+
+  return {
+    ...game_state,
+    status: 'finished',
+    winner: 'me',
+    endTime: end_time,
   };
 }
 

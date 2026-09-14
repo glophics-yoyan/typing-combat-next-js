@@ -66,7 +66,8 @@ export function getQuotesByDifficulty(difficulty: number): Quote[] {
 
 export function getRandomQuote(difficulty: number): Quote {
   const quotes = getQuotesByDifficulty(difficulty);
-  return quotes[Math.floor(Math.random() * quotes.length)];
+  const available_quotes = quotes.length ? quotes : FALLBACK_QUOTES;
+  return available_quotes[Math.floor(Math.random() * available_quotes.length)];
 }
 
 export function generateBattleQuote(difficulty: number): Pick<Quote, 'text' | 'author' | 'difficulty'> {

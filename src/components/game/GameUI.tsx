@@ -73,15 +73,19 @@ export function GameFooter() {
     return <footer className="game-footer"><span>EVERY KEYSTROKE COUNTS.</span><span>Speed is power. Accuracy is everything.</span></footer>;
 }
 
-export function ArenaArtwork() {
+export function ArenaArtwork({ opponent_kind = 'fighter' }: { opponent_kind?: 'fighter' | 'punching_bag' }) {
+    const is_practice = opponent_kind === 'punching_bag';
+
     return (
-        <div className="arena-art" aria-hidden="true">
+        <div className={'arena-art' + (is_practice ? ' practice-arena-art' : '')} aria-hidden="true">
             <div className="arena-orbit orbit-one" /><div className="arena-orbit orbit-two" />
             <div className="arena-grid" />
             <div className="combatant combatant-left"><div className="helmet"><i /></div><div className="armor"><i /></div><div className="arm arm-left" /><div className="arm arm-right" /><div className="legs" /></div>
-            <div className="combatant combatant-right"><div className="helmet"><i /></div><div className="armor"><i /></div><div className="arm arm-left" /><div className="arm arm-right" /><div className="legs" /></div>
-            <div className="arena-versus">VS<span>DUEL PROTOCOL</span></div>
-            <span className="art-label art-label-left">01 / YOU</span><span className="art-label art-label-right">02 / OPPONENT</span>
+            {is_practice
+                ? <div className="fallback-punching-bag"><div className="bag-target"><i /><span /></div><div className="bag-post" /><div className="bag-base" /></div>
+                : <div className="combatant combatant-right"><div className="helmet"><i /></div><div className="armor"><i /></div><div className="arm arm-left" /><div className="arm arm-right" /><div className="legs" /></div>}
+            <div className="arena-versus">{is_practice ? 'PRACTICE' : 'VS'}<span>{is_practice ? 'SOLO DRILL' : 'DUEL PROTOCOL'}</span></div>
+            <span className="art-label art-label-left">01 / YOU</span><span className="art-label art-label-right">{is_practice ? 'TARGET / BAG' : '02 / OPPONENT'}</span>
         </div>
     );
 }

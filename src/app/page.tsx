@@ -116,6 +116,7 @@ export default function Home() {
                             </div>
                             {error && <p className="form-error" role="alert">{error}</p>}
                             <Button type="button" className="full-width" disabled={busy} onClick={() => void enterBattle('create')}>{busy && pending_action === 'create' ? 'Creating battle…' : 'Create battle'}<span aria-hidden="true">↗</span></Button>
+                            <Link href="/practice" className="button button-secondary full-width practice-button">Practice solo<span aria-hidden="true">→</span></Link>
                         </form>
                         <div className="divider"><span>HAVE AN INVITE?</span></div>
                         <form onSubmit={(event) => { event.preventDefault(); void enterBattle('join'); }} className="join-form">

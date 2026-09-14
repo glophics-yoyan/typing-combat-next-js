@@ -111,6 +111,15 @@ h3 { font-weight: 600; }
 .orbit-two { left: calc(76% - 120px); border-color: #ff857c45; box-shadow: 0 0 35px #ff857c0c; }
 .combatant { --suit: #68e4ef; position: absolute; width: 105px; height: 190px; left: calc(25% - 52px); bottom: 66px; filter: drop-shadow(0 12px 20px #0008); transform: rotate(-5deg); }
 .combatant-right { --suit: #ff857c; left: calc(76% - 52px); transform: rotate(5deg) scaleX(-1); }
+.fallback-punching-bag { position: absolute; width: 105px; height: 190px; left: calc(76% - 52px); bottom: 66px; filter: drop-shadow(0 12px 20px #0008); transform-origin: 50% 85%; }
+.bag-target { position: absolute; width: 72px; height: 113px; left: 17px; top: 0; border-radius: 35px 35px 28px 28px; background: linear-gradient(100deg, #b25258, #682c36 72%); border: 2px solid #d87173; box-shadow: inset -10px 0 18px #35172266, 0 0 24px #ff857c18; }
+.bag-target::after { content: ''; position: absolute; left: 7px; right: 7px; top: 29px; height: 5px; background: #ffb0a9; box-shadow: 0 0 10px #ff857c88; }
+.bag-target i { position: absolute; width: 25px; height: 25px; border: 3px solid #ffb0a9; border-radius: 50%; left: 21px; top: 54px; }
+.bag-target span { position: absolute; width: 3px; height: 34px; left: 33px; top: 50px; background: #ffb0a9; transform: rotate(45deg); opacity: .55; }
+.bag-post { position: absolute; width: 13px; height: 54px; left: 46px; top: 108px; background: linear-gradient(90deg, #314b62, #7690a5, #263b50); }
+.bag-base { position: absolute; width: 101px; height: 30px; left: 2px; bottom: 0; border-radius: 50% 50% 8px 8px; background: linear-gradient(#496278, #1a2c3e); border-bottom: 5px solid #ff857c; }
+.practice-arena-art .bag-target { animation: bag-impact .55s ease-out; transform-origin: 50% 85%; }
+.practice-arena-art .arena-versus { font-size: 11px; letter-spacing: 1.5px; }
 .helmet { position: absolute; width: 62px; height: 61px; left: 21px; top: 0; background: linear-gradient(120deg, #547085, #172c3a 70%); clip-path: polygon(20% 0, 80% 0, 100% 25%, 94% 78%, 70% 100%, 26% 94%, 3% 68%, 0 25%); border-top: 3px solid var(--suit); }
 .helmet i { position: absolute; left: 8px; right: 5px; top: 25px; height: 10px; background: var(--suit); box-shadow: 0 0 15px var(--suit); transform: skewY(-9deg); }
 .armor { position: absolute; left: 12px; top: 67px; width: 82px; height: 69px; background: linear-gradient(130deg, #425a6f, #1a2d3e 75%); clip-path: polygon(10% 0, 90% 0, 100% 20%, 83% 100%, 20% 100%, 0 20%); border-top: 4px solid var(--suit); }
@@ -139,6 +148,7 @@ h3 { font-weight: 600; }
 .field input:focus { border-color: var(--primary); }
 .field-hint { color: #8d9eb0; font-size: 10px; margin-top: 8px; line-height: 1.5; }
 .name-field { margin: 21px 0 16px; }
+.practice-button { margin-top: 10px; }
 .button { min-height: 45px; border: 1px solid transparent; border-radius: 5px; padding: 11px 18px; display: inline-flex; align-items: center; justify-content: center; gap: 14px; font-size: 12px; font-weight: 650; white-space: nowrap; }
 .button-primary { background: var(--primary); color: #071720; }
 .button-primary:hover:not(:disabled) { background: #9aeff6; }
@@ -245,6 +255,11 @@ h3 { font-weight: 600; }
 .opponent-progress { margin-top: 20px; display: flex; gap: 15px; align-items: center; color: var(--muted-foreground); font-size: 11px; flex-wrap: wrap; }
 .opponent-progress strong { color: var(--danger); }
 .opponent-progress progress { flex: 1; min-width: 80px; height: 5px; accent-color: var(--danger); }
+.practice-target-note { margin: 20px 0; display: flex; gap: 15px; align-items: center; color: var(--muted-foreground); font-size: 11px; flex-wrap: wrap; }
+.practice-target-note > span:first-child { font-family: var(--font-mono); color: var(--danger); letter-spacing: 1px; }
+.practice-target-note strong { color: var(--danger); }
+.practice-target-note > span:last-child { margin-left: auto; }
+.practice-page .result-metrics { grid-template-columns: repeat(3, 1fr); }
 .countdown-banner { text-align: center; padding: 18px; color: var(--primary); background: #68e4ef09; border: 1px solid #68e4ef30; margin-bottom: 16px; border-radius: 7px; }
 .countdown-banner strong { display: block; font-family: var(--font-mono); font-size: 48px; }
 .countdown-banner span { font-size: 12px; }
@@ -300,6 +315,7 @@ h3 { font-weight: 600; }
 .setting-row select { min-width: 140px; border: 1px solid var(--border); border-radius: 5px; background: var(--muted); color: var(--foreground); padding: 9px 12px; }
 .setting-row input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--primary); }
 @keyframes breathe { to { opacity: .25; } }
+@keyframes bag-impact { 25% { transform: rotate(7deg) translateX(5px); } 55% { transform: rotate(-4deg) translateX(-2px); } }
 @media (min-width: 1400px) { .home-page { padding-top: 58px; } }
 @media (max-width: 900px) {
     .header-tag { display: none; }
@@ -360,6 +376,7 @@ h3 { font-weight: 600; }
     .arena-finished .combat-cues { font-size: 12px; }
     .battle-scene .combatant { transform: scale(.6); bottom: 0; }
     .battle-scene .combatant-right { transform: scale(.6) scaleX(-1); }
+    .battle-scene .fallback-punching-bag { transform: scale(.72); bottom: 0; }
     .battle-scene .art-label { display: none; }
     .typing-panel { padding: 18px; }
     .typing-panel .micro-label { font-size: 8px; }
@@ -376,6 +393,8 @@ h3 { font-weight: 600; }
     .game-dialog { padding: 25px; }
     .dialog-actions { flex-wrap: wrap; }
     .battle-page { padding-top: 22px; }
+    .practice-target-note > span:last-child { width: 100%; margin-left: 0; }
+    .practice-page .result-metrics { grid-template-columns: 1fr; gap: 18px; }
 }
 @media (max-width: 380px) {
     .brand-mark { display: none; }
