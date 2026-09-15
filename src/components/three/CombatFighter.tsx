@@ -2,6 +2,7 @@
 
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import * as THREE from 'three';
+import { ImagePlate } from './ImagePlate';
 
 export interface FighterRig {
     root: THREE.Group;
@@ -15,7 +16,7 @@ export interface FighterRig {
     armor: THREE.MeshStandardMaterial;
 }
 
-export const CombatFighter = forwardRef<FighterRig, { color: string; mirrored: boolean }>(function CombatFighter({ color, mirrored }, ref) {
+export const CombatFighter = forwardRef<FighterRig, { color: string; mirrored: boolean; head_image?: string | null }>(function CombatFighter({ color, mirrored, head_image }, ref) {
     const root_ref = useRef<THREE.Group>(null);
     const torso_ref = useRef<THREE.Group>(null);
     const head_ref = useRef<THREE.Group>(null);
@@ -44,7 +45,7 @@ export const CombatFighter = forwardRef<FighterRig, { color: string; mirrored: b
                 <mesh position={[-.38, .18, 0]}><boxGeometry args={[.13, .4, .65]} /><meshStandardMaterial color="#25394e" /></mesh>
                 <group ref={head_ref} position={[.06, .72, 0]}>
                     <mesh><boxGeometry args={[.64, .57, .57]} /><meshStandardMaterial color="#8ea5b8" metalness={.2} roughness={.4} /></mesh>
-                    <mesh position={[.16, .025, .3]}><boxGeometry args={[.41, .13, .035]} /><meshBasicMaterial color={color} toneMapped={false} /></mesh>
+                    {head_image ? <ImagePlate image_source={head_image} radius={.255} position={[.06, .025, .305]} /> : <mesh position={[.16, .025, .3]}><boxGeometry args={[.41, .13, .035]} /><meshBasicMaterial color={color} toneMapped={false} /></mesh>}
                     <mesh position={[.33, .025, .05]}><boxGeometry args={[.035, .13, .5]} /><meshBasicMaterial color={color} toneMapped={false} /></mesh>
                     <mesh position={[-.16, .32, 0]} rotation={[0, 0, -.35]}><coneGeometry args={[.15, .36, 4]} /><meshStandardMaterial color={color} /></mesh>
                 </group>

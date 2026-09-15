@@ -27,6 +27,8 @@ const DEFAULT_STATS: LocalStats = {
     particles_enabled: true,
     theme: 'system',
     quote_difficulty: 2,
+    fighter_head_image: null,
+    punching_bag_image: null,
   },
   recent_matches: [],
 };
@@ -146,6 +148,8 @@ function normalizeStats(value: unknown): LocalStats {
       theme: ['dark', 'light', 'system'].includes(String(legacy_settings.theme))
         ? legacy_settings.theme as LocalStats['settings']['theme'] : 'system',
       quote_difficulty: normalizeDifficulty(legacy_settings.quote_difficulty ?? legacy_settings.quoteDifficulty),
+      fighter_head_image: normalizeLocalImage(legacy_settings.fighter_head_image),
+      punching_bag_image: normalizeLocalImage(legacy_settings.punching_bag_image),
     },
     recent_matches: legacy_matches.map((match) => ({
       id: String(match.id ?? crypto.randomUUID()),
@@ -162,4 +166,8 @@ function normalizeStats(value: unknown): LocalStats {
 function normalizeDifficulty(value: unknown): LocalStats['settings']['quote_difficulty'] {
   const difficulty = Number(value ?? 2);
   return difficulty >= 1 && difficulty <= 5 ? difficulty as LocalStats['settings']['quote_difficulty'] : 2;
+}
+
+function normalizeLocalImage(value: unknown): string | null {
+  return typeof value === 'string' && value.startsWith('data:image/') ? value : null;
 }

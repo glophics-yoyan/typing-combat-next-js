@@ -23,9 +23,11 @@ interface BattleSceneProps {
     opponent_hp: number;
     particles_enabled: boolean;
     opponent_kind?: 'fighter' | 'punching_bag';
+    player_head_image?: string | null;
+    punching_bag_image?: string | null;
 }
 
-function CombatWorld({ snapshot, cue_refs, effects_enabled, opponent_kind }: { snapshot: CombatSnapshot; cue_refs: [RefObject<HTMLSpanElement | null>, RefObject<HTMLSpanElement | null>]; effects_enabled: boolean; opponent_kind: 'fighter' | 'punching_bag' }) {
+function CombatWorld({ snapshot, cue_refs, effects_enabled, opponent_kind, player_head_image, punching_bag_image }: { snapshot: CombatSnapshot; cue_refs: [RefObject<HTMLSpanElement | null>, RefObject<HTMLSpanElement | null>]; effects_enabled: boolean; opponent_kind: 'fighter' | 'punching_bag'; player_head_image: string | null; punching_bag_image: string | null }) {
     const left_ref = useRef<FighterRig>(null);
     const right_ref = useRef<FighterRig>(null);
     const bag_ref = useRef<PunchingBagRig>(null);
@@ -209,10 +211,10 @@ function CombatWorld({ snapshot, cue_refs, effects_enabled, opponent_kind }: { s
             <pointLight position={[3, 2, 2]} color="#ff857c" intensity={5} />
             <gridHelper args={[18, 30, '#42627c', '#243d55']} position={[0, -.02, 0]} />
             <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -.03, 0]}><planeGeometry args={[18, 14]} /><meshStandardMaterial color="#122337" roughness={.8} /></mesh>
-            <CombatFighter ref={left_ref} color="#68e4ef" mirrored={false} />
+            <CombatFighter ref={left_ref} color="#68e4ef" mirrored={false} head_image={player_head_image} />
             {opponent_kind === 'fighter'
                 ? <CombatFighter ref={right_ref} color="#ff857c" mirrored />
-                : <><group visible={false}><CombatFighter ref={right_ref} color="#ff857c" mirrored /></group><PunchingBag ref={bag_ref} /></>}
+                : <><group visible={false}><CombatFighter ref={right_ref} color="#ff857c" mirrored /></group><PunchingBag ref={bag_ref} target_image={punching_bag_image} /></>}
             <CombatEffects ref={left_effect_ref} color="#68e4ef" />
             <CombatEffects ref={right_effect_ref} color="#ff857c" />
         </>
@@ -237,7 +239,7 @@ export function BattleScene(props: BattleSceneProps) {
     const words = useMemo(() => getWordAttacks(props.quote_text), [props.quote_text]);
     const opponent_kind = props.opponent_kind ?? 'fighter';
     const completed_words = words.filter((word) => word.end <= props.my_position).length;
-    const fallback_artwork = <ArenaArtwork key={`${opponent_kind}-${completed_words}`} opponent_kind={opponent_kind} />;
+    const fallback_artwork = <ArenaArtwork key={`${opponent_kind}-${completed_words}`} opponent_kind={opponent_kind} player_head_image={props.player_head_image} punching_bag_image={props.punching_bag_image} />;
     const snapshot: CombatSnapshot = {
         quote_text: props.quote_text, status: props.status, connected: props.connected, winner: props.winner, paused: props.paused,
         players: [
@@ -302,7 +304,7 @@ export function BattleScene(props: BattleSceneProps) {
                     <Canvas orthographic camera={{ position: [0, 1.45, 8], zoom: 65 }} dpr={[1, 1.5]} frameloop={props.paused ? 'demand' : 'always'} gl={{ antialias: true, alpha: true }} fallback={fallback_artwork} onCreated={({ gl }) => {
                         gl.domElement.addEventListener('webglcontextlost', () => setContextLost(true), { once: true });
                     }}>
-                        <CombatWorld snapshot={snapshot} cue_refs={[left_cue_ref, right_cue_ref]} effects_enabled={props.particles_enabled} opponent_kind={opponent_kind} />
+                        <CombatWorld snapshot={snapshot} cue_refs={[left_cue_ref, right_cue_ref]} effects_enabled={props.particles_enabled} opponent_kind={opponent_kind} player_head_image={props.player_head_image ?? null} punching_bag_image={props.punching_bag_image ?? null} />
                     </Canvas>
                 </SceneBoundary>
             ) : fallback_artwork}

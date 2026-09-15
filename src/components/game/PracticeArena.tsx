@@ -78,6 +78,8 @@ export function PracticeArena() {
                             paused={results_visible}
                             particles_enabled={settings.particles_enabled}
                             opponent_kind="punching_bag"
+                            player_head_image={settings.fighter_head_image}
+                            punching_bag_image={settings.punching_bag_image}
                             my_position={game_state.myState.position}
                             opponent_position={0}
                             my_mistakes={game_state.myState.totalKeystrokes - game_state.myState.correctKeystrokes}

@@ -189,6 +189,8 @@ export interface LocalStats {
     particles_enabled: boolean;
     theme: 'dark' | 'light' | 'system';
     quote_difficulty: 1 | 2 | 3 | 4 | 5;
+    fighter_head_image: string | null;
+    punching_bag_image: string | null;
   };
   recent_matches: MatchSummary[];
 }

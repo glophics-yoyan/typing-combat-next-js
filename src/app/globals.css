@@ -122,6 +122,9 @@ h3 { font-weight: 600; }
 .practice-arena-art .arena-versus { font-size: 11px; letter-spacing: 1.5px; }
 .helmet { position: absolute; width: 62px; height: 61px; left: 21px; top: 0; background: linear-gradient(120deg, #547085, #172c3a 70%); clip-path: polygon(20% 0, 80% 0, 100% 25%, 94% 78%, 70% 100%, 26% 94%, 3% 68%, 0 25%); border-top: 3px solid var(--suit); }
 .helmet i { position: absolute; left: 8px; right: 5px; top: 25px; height: 10px; background: var(--suit); box-shadow: 0 0 15px var(--suit); transform: skewY(-9deg); }
+.helmet.has-local-image { background: linear-gradient(120deg, #547085, #172c3a 70%); }
+.local-image-face { position: absolute; display: block; width: 48px; height: 48px; left: 6px; top: 5px; border: 2px solid #d8e7f0; border-radius: 50%; background-position: center; background-repeat: no-repeat; background-size: cover; box-shadow: 0 0 14px #68e4ef55; }
+.bag-image-face { width: 52px; height: 52px; left: 8px; top: 47px; border-color: #ffb0a9; box-shadow: 0 0 14px #ff857c77; }
 .armor { position: absolute; left: 12px; top: 67px; width: 82px; height: 69px; background: linear-gradient(130deg, #425a6f, #1a2d3e 75%); clip-path: polygon(10% 0, 90% 0, 100% 20%, 83% 100%, 20% 100%, 0 20%); border-top: 4px solid var(--suit); }
 .armor i { position: absolute; left: 30px; top: 17px; height: 24px; width: 24px; border: 2px solid var(--suit); transform: rotate(45deg); background: #071521; }
 .arm { width: 27px; height: 67px; background: linear-gradient(100deg, #384f61, #152331); position: absolute; top: 70px; border-top: 8px solid var(--suit); }
@@ -314,6 +317,21 @@ h3 { font-weight: 600; }
 .setting-row small { color: var(--muted-foreground); line-height: 1.5; }
 .setting-row select { min-width: 140px; border: 1px solid var(--border); border-radius: 5px; background: var(--muted); color: var(--foreground); padding: 9px 12px; }
 .setting-row input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--primary); }
+.character-customization { border-top: 1px solid var(--border); padding: 28px 0 22px; }
+.character-customization h2 { font-size: 20px; margin: 10px 0 7px; }
+.character-customization > div:first-child > .muted { font-size: 11px; line-height: 1.6; }
+.image-customization-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 22px; }
+.image-setting-card { display: grid; grid-template-columns: 66px 1fr; align-items: center; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: 7px; background: #0b1420; }
+.image-setting-card h3 { font-size: 13px; margin-bottom: 5px; }
+.image-setting-card p { color: var(--muted-foreground); font-size: 10px; line-height: 1.5; }
+.local-image-preview { width: 62px; height: 62px; display: grid; place-items: center; border: 2px solid var(--primary); border-radius: 50%; background: radial-gradient(circle, #526f85, #172b3b); background-position: center; background-size: cover; color: var(--primary); font-family: var(--font-mono); font-size: 7px; letter-spacing: 1px; box-shadow: 0 0 18px #68e4ef22; }
+.bag-image-preview { border-color: var(--danger); background-image: radial-gradient(circle, #a3464e, #51222d); color: #ffb0a9; box-shadow: 0 0 18px #ff857c22; }
+.local-image-input { grid-column: 1 / -1; width: 100%; color: var(--muted-foreground); font-size: 10px; }
+.local-image-input::file-selector-button { min-height: 36px; margin-right: 10px; border: 1px solid #3a4b5e; border-radius: 5px; padding: 8px 12px; background: #1a2939; color: #e8f1f9; cursor: pointer; }
+.local-image-input:disabled::file-selector-button { cursor: not-allowed; opacity: .55; }
+.image-setting-card > .button { grid-column: 1 / -1; min-height: 36px; }
+.image-status { margin-top: 14px; color: var(--muted-foreground); font-size: 11px; }
+.image-success { color: var(--primary); }
 @keyframes breathe { to { opacity: .25; } }
 @keyframes bag-impact { 25% { transform: rotate(7deg) translateX(5px); } 55% { transform: rotate(-4deg) translateX(-2px); } }
 @media (min-width: 1400px) { .home-page { padding-top: 58px; } }
@@ -395,6 +413,7 @@ h3 { font-weight: 600; }
     .battle-page { padding-top: 22px; }
     .practice-target-note > span:last-child { width: 100%; margin-left: 0; }
     .practice-page .result-metrics { grid-template-columns: 1fr; gap: 18px; }
+    .image-customization-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 380px) {
     .brand-mark { display: none; }

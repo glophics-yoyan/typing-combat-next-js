@@ -9,6 +9,8 @@ const DEFAULT_SETTINGS: LocalStats['settings'] = {
     particles_enabled: true,
     theme: 'system',
     quote_difficulty: 2,
+    fighter_head_image: null,
+    punching_bag_image: null,
 };
 
 interface SettingsContextValue {

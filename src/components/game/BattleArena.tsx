@@ -141,6 +141,7 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
                     <>
                         <HealthBars myHp={game_state.myState.hp} opponentHp={opponent_state?.hp ?? 100} myName={username} opponentName={opponent_name} />
                         <BattleScene key={room_code} quote_text={game_state.quote?.text ?? ''} connected={connected && opponent_connected} status={game_state.status} winner={game_state.winner} paused={results_visible || game_state.status === 'paused' || cancelled} particles_enabled={settings.particles_enabled}
+                            player_head_image={settings.fighter_head_image}
                             my_position={game_state.myState.position} opponent_position={opponent_state?.position ?? 0}
                             my_mistakes={game_state.myState.totalKeystrokes - game_state.myState.correctKeystrokes}
                             opponent_mistakes={(opponent_state?.totalKeystrokes ?? 0) - (opponent_state?.correctKeystrokes ?? 0)}

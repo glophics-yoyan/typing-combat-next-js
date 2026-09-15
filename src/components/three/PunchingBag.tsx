@@ -2,6 +2,7 @@
 
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import * as THREE from 'three';
+import { ImagePlate } from './ImagePlate';
 
 export interface PunchingBagRig {
     root: THREE.Group;
@@ -9,7 +10,7 @@ export interface PunchingBagRig {
     padding: THREE.MeshStandardMaterial;
 }
 
-export const PunchingBag = forwardRef<PunchingBagRig>(function PunchingBag(_, ref) {
+export const PunchingBag = forwardRef<PunchingBagRig, { target_image?: string | null }>(function PunchingBag({ target_image }, ref) {
     const root_ref = useRef<THREE.Group>(null);
     const target_ref = useRef<THREE.Group>(null);
     const padding_ref = useRef<THREE.MeshStandardMaterial>(null);
@@ -30,7 +31,7 @@ export const PunchingBag = forwardRef<PunchingBagRig>(function PunchingBag(_, re
                 <mesh position={[0, 1.295, 0]}><sphereGeometry args={[.42, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color="#943f46" roughness={.55} /></mesh>
                 <mesh position={[0, .045, 0]} rotation={[Math.PI, 0, 0]}><sphereGeometry args={[.46, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color="#943f46" roughness={.55} /></mesh>
                 <mesh position={[0, .82, .43]}><boxGeometry args={[.48, .08, .035]} /><meshBasicMaterial color="#ffb0a9" toneMapped={false} /></mesh>
-                <mesh position={[0, .5, .445]}><ringGeometry args={[.12, .17, 24]} /><meshBasicMaterial color="#ffb0a9" toneMapped={false} /></mesh>
+                {target_image ? <ImagePlate image_source={target_image} radius={.25} position={[0, .48, .445]} /> : <mesh position={[0, .5, .445]}><ringGeometry args={[.12, .17, 24]} /><meshBasicMaterial color="#ffb0a9" toneMapped={false} /></mesh>}
             </group>
         </group>
     );
