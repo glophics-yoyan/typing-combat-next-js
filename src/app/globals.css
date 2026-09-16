@@ -65,6 +65,7 @@
     --font-mono: var(--font-geist-mono);
 }
 * { box-sizing: border-box; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
 body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans), sans-serif; font-size: 14px; }
 button, input, select { font: inherit; }
 button, a, input { -webkit-tap-highlight-color: transparent; transition: background .18s, border-color .18s, color .18s; }
@@ -229,6 +230,16 @@ h3 { font-weight: 600; }
 .battle-scene .combatant-right { transform: scale(.8) scaleX(-1); }
 .battle-scene .arena-orbit { bottom: 25px; }
 .battle-scene.anime-arena { height: 310px; background: radial-gradient(ellipse at 50% 70%, #203f59, #0a1422 80%); }
+.arena-image-picker { position: absolute; z-index: 5; top: 14%; bottom: 10%; width: 32%; border: 1px solid transparent; border-radius: 45%; cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+.arena-player-image-picker { left: 3%; }
+.arena-target-image-picker { right: 3%; }
+.arena-image-picker::after { content: attr(data-label); position: absolute; left: 50%; bottom: 5px; padding: 4px 7px; border: 1px solid #ffffff26; border-radius: 4px; background: #071521d9; color: #e8f1f9; font-family: var(--font-mono); font-size: 7px; letter-spacing: 1px; opacity: 0; pointer-events: none; transform: translateX(-50%); transition: opacity .15s ease; white-space: nowrap; }
+.arena-image-picker:hover { border-color: #ffffff38; background: #ffffff08; }
+.arena-image-picker:hover::after, .arena-image-picker:has(.local-image-input:focus-visible)::after { opacity: 1; }
+.arena-image-picker:has(.local-image-input:focus-visible) { outline: 2px solid var(--foreground); outline-offset: -3px; }
+.arena-image-picker:has(.local-image-input:disabled) { cursor: wait; opacity: .55; }
+.arena-image-feedback { min-height: 18px; margin: -9px 0 12px; font-size: 10px; }
+.arena-image-feedback.success { color: var(--primary); }
 .combat-scene-label { position: absolute; z-index: 1; top: 16px; left: 20px; right: 20px; display: flex; justify-content: space-between; gap: 16px; pointer-events: none; font-family: var(--font-mono); font-size: 8px; letter-spacing: 1px; color: #9ab6c9; }
 .combat-cues { position: absolute; bottom: 16px; left: 15%; right: 15%; display: flex; justify-content: space-between; gap: 16px; pointer-events: none; font-family: var(--font-mono); font-weight: 700; font-style: italic; font-size: 13px; letter-spacing: 1.2px; }
 .combat-cues > span { color: var(--primary); text-shadow: 0 0 14px #68e4ef55; }

@@ -1,11 +1,19 @@
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_SOURCE_LENGTH = 2_000_000;
 const OUTPUT_SIZE = 512;
 const SUPPORTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const SUPPORTED_IMAGE_SOURCE = /^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=]+$/i;
 
 export function validateCharacterImage(file: Pick<File, 'size' | 'type'>): string | null {
     if (!SUPPORTED_IMAGE_TYPES.has(file.type)) return 'Choose a JPEG, PNG, or WebP image.';
     if (file.size > MAX_IMAGE_BYTES) return 'Choose an image smaller than 10 MB.';
     return null;
+}
+
+export function isCharacterImageSource(value: unknown): value is string {
+    return typeof value === 'string'
+        && value.length <= MAX_IMAGE_SOURCE_LENGTH
+        && SUPPORTED_IMAGE_SOURCE.test(value);
 }
 
 export async function prepareCharacterImage(file: File): Promise<string> {

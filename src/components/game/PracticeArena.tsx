@@ -3,14 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePracticeBattle } from '@/hooks/usePracticeBattle';
-import { useSettings } from '@/hooks/useSettings';
+import { useGameCharacterImages } from '@/hooks/useGameCharacterImages';
 import { playBattleSound } from '@/lib/battle-audio';
 import { BattleScene } from '@/components/three/BattleScene';
 import { TypingInterface } from '@/components/game/TypingInterface';
 import { Button, GameDialog, GameFooter, GameHeader, Metric, Panel, Status } from '@/components/game/GameUI';
 
 export function PracticeArena() {
-    const { settings, loading: settings_loading } = useSettings();
+    const { settings, settings_loading, uploading_target, image_message, image_error, uploadImage } = useGameCharacterImages();
     const { game_state, countdown, loading, error, startPractice, handleKeystroke, handleDeletion } = usePracticeBattle(settings.quote_difficulty, !settings_loading);
     const [results_visible, setResultsVisible] = useState(false);
     const previous_position_ref = useRef(0);
@@ -80,6 +80,9 @@ export function PracticeArena() {
                             opponent_kind="punching_bag"
                             player_head_image={settings.fighter_head_image}
                             punching_bag_image={settings.punching_bag_image}
+                            on_player_image_change={(event) => void uploadImage('fighter_head_image', event)}
+                            on_target_image_change={(event) => void uploadImage('punching_bag_image', event)}
+                            image_picker_disabled={settings_loading || Boolean(uploading_target)}
                             my_position={game_state.myState.position}
                             opponent_position={0}
                             my_mistakes={game_state.myState.totalKeystrokes - game_state.myState.correctKeystrokes}
@@ -87,6 +90,9 @@ export function PracticeArena() {
                             my_hp={100}
                             opponent_hp={100}
                         />
+                        {image_error
+                            ? <p className="arena-image-feedback form-error" role="alert">{image_error}</p>
+                            : image_message ? <p className="arena-image-feedback success" role="status">{image_message}</p> : null}
                         {game_state.status === 'countdown' && <div className="countdown-banner" role="status"><strong>{countdown || 3}</strong><span>Hands on the keyboard. Practice begins soon.</span></div>}
                         {game_state.status === 'finished' && !results_visible && <div className="finish-actions"><span>Drill complete.</span><Button variant="secondary" onClick={() => setResultsVisible(true)}>View results</Button></div>}
                         <TypingInterface key={game_state.quote?.id} gameState={game_state} onKeystroke={typeCharacter} onDelete={handleDeletion} />

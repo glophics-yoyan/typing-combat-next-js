@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { recordMatch } from '@/lib/storage';
 import { useAuthoritativeBattle } from '@/hooks/useAuthoritativeBattle';
-import { useSettings } from '@/hooks/useSettings';
+import { useBattleCharacterImage } from '@/hooks/useBattleCharacterImage';
+import { useGameCharacterImages } from '@/hooks/useGameCharacterImages';
 import { playBattleSound } from '@/lib/battle-audio';
 import { HealthBars } from '@/components/game/HealthBars';
 import { TypingInterface } from '@/components/game/TypingInterface';
@@ -25,7 +26,7 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
     const [invite_url, setInviteUrl] = useState('');
     const [save_error, setSaveError] = useState('');
     const [results_visible, setResultsVisible] = useState(false);
-    const { settings } = useSettings();
+    const { settings, settings_loading, uploading_target, image_message, image_error, uploadImage } = useGameCharacterImages();
     const opponent_hp_ref = useRef(100);
     const {
         gameState: game_state, connected, opponentConnected: opponent_connected, error, countdown,
@@ -42,11 +43,20 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
                 .catch(() => setSaveError('This result could not be saved to your browser.'));
         },
     });
+    const opponent_head_image = useBattleCharacterImage({
+        room_code,
+        join_token,
+        enabled: connected && opponent_connected,
+        player_head_image: settings.fighter_head_image,
+    });
     const opponent_name = live_opponent_name || opponent_username;
     const opponent_state = game_state?.opponentState;
     const waiting = game_state?.status === 'waiting';
     const cancelled = game_state?.status === 'cancelled';
     const result_available = game_state?.status === 'finished' && game_state.winner !== null;
+    const image_feedback = image_error
+        ? <p className="arena-image-feedback form-error" role="alert">{image_error}</p>
+        : image_message ? <p className="arena-image-feedback success" role="status">{image_message}</p> : null;
 
     function readyForBattle() {
         playBattleSound('ready', settings.sound_enabled);
@@ -118,7 +128,8 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
                         <div className="lobby-grid">
                             <Panel className="lobby-preview">
                                 <div className="panel-topline"><span className="eyebrow">COMBATANTS</span><span className="micro-label">1V1 ARENA</span></div>
-                                <ArenaArtwork />
+                                <ArenaArtwork player_head_image={settings.fighter_head_image} opponent_head_image={opponent_head_image} on_player_image_change={(event) => void uploadImage('fighter_head_image', event)} image_picker_disabled={settings_loading || Boolean(uploading_target)} />
+                                {image_feedback}
                                 <div style={{ padding: '0 22px 14px' }}>
                                     <div className="player-slot"><div><strong>{username}</strong><small>YOU · {is_host ? 'ROOM HOST' : 'CHALLENGER'}</small></div><Status tone={game_state.myState.isReady ? 'good' : 'neutral'}>{game_state.myState.isReady ? 'Ready' : 'Not ready'}</Status></div>
                                     <div className="player-slot"><div><strong>{opponent_connected || opponent_state ? opponent_name : 'Opponent slot open'}</strong><small>{opponent_connected ? 'CONNECTED' : 'AWAITING CONNECTION'}</small></div><Status tone={opponent_state?.isReady ? 'good' : 'neutral'}>{opponent_state?.isReady ? 'Ready' : opponent_connected ? 'Not ready' : 'Waiting'}</Status></div>
@@ -142,10 +153,14 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
                         <HealthBars myHp={game_state.myState.hp} opponentHp={opponent_state?.hp ?? 100} myName={username} opponentName={opponent_name} />
                         <BattleScene key={room_code} quote_text={game_state.quote?.text ?? ''} connected={connected && opponent_connected} status={game_state.status} winner={game_state.winner} paused={results_visible || game_state.status === 'paused' || cancelled} particles_enabled={settings.particles_enabled}
                             player_head_image={settings.fighter_head_image}
+                            opponent_head_image={opponent_head_image}
+                            on_player_image_change={(event) => void uploadImage('fighter_head_image', event)}
+                            image_picker_disabled={settings_loading || Boolean(uploading_target)}
                             my_position={game_state.myState.position} opponent_position={opponent_state?.position ?? 0}
                             my_mistakes={game_state.myState.totalKeystrokes - game_state.myState.correctKeystrokes}
                             opponent_mistakes={(opponent_state?.totalKeystrokes ?? 0) - (opponent_state?.correctKeystrokes ?? 0)}
                             my_hp={game_state.myState.hp} opponent_hp={opponent_state?.hp ?? 100} />
+                        {image_feedback}
                         {result_available && !results_visible && <div className="finish-actions"><span>{game_state.winner === 'me' ? 'Victory is yours.' : 'Duel complete.'}</span><Button variant="secondary" onClick={() => setResultsVisible(true)}>View results</Button></div>}
                         {game_state.status === 'countdown' && <div className="countdown-banner" role="status"><strong>{countdown || 3}</strong><span>Hands on the keyboard. Your duel is about to begin.</span></div>}
                         {game_state.status === 'paused' && <div className="countdown-banner" role="status"><strong>PAUSED</strong><span>Waiting up to 30 seconds for both fighters to reconnect.</span></div>}

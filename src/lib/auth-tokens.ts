@@ -111,3 +111,8 @@ export function createRoomToken(payload: Omit<RoomTokenPayload, keyof SignedPayl
         expires_at: now + ROOM_TOKEN_SECONDS,
     }, getSecret('ROOM_TOKEN_SECRET'));
 }
+
+export function verifyRoomToken(token: string) {
+    const payload = verifyPayload<RoomTokenPayload>(token, getSecret('ROOM_TOKEN_SECRET'));
+    return payload?.protocol_version === 2 ? payload : null;
+}

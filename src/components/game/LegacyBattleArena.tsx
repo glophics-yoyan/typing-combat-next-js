@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useBattle } from '@/hooks/useBattle';
-import { useSettings } from '@/hooks/useSettings';
+import { useGameCharacterImages } from '@/hooks/useGameCharacterImages';
 import { recordMatch } from '@/lib/storage';
 import { BattleScene } from '@/components/three/BattleScene';
 import { HealthBars } from '@/components/game/HealthBars';
@@ -20,7 +20,7 @@ interface LegacyBattleArenaProps {
 
 export function LegacyBattleArena({ room_code, is_host, user_id, username, opponent_username }: LegacyBattleArenaProps) {
     const [results_visible, setResultsVisible] = useState(false);
-    const { settings } = useSettings();
+    const { settings, settings_loading, uploading_target, image_message, image_error, uploadImage } = useGameCharacterImages();
     const { gameState: game_state, connected, error, countdown, handleKeystroke, handleDeletion, handleReady, startCountdown, retryConnection, opponentUsername } = useBattle({
         roomCode: room_code,
         isHost: is_host,
@@ -49,7 +49,10 @@ export function LegacyBattleArena({ room_code, is_host, user_id, username, oppon
                 ) : (
                     <>
                         <HealthBars myHp={game_state.myState.hp} opponentHp={opponent_state?.hp ?? 100} myName={username} opponentName={opponent_name} />
-                        <BattleScene quote_text={game_state.quote?.text ?? ''} connected={connected} status={game_state.status} winner={game_state.winner} paused={results_visible} particles_enabled={settings.particles_enabled} player_head_image={settings.fighter_head_image} my_position={game_state.myState.position} opponent_position={opponent_state?.position ?? 0} my_mistakes={game_state.myState.totalKeystrokes - game_state.myState.correctKeystrokes} opponent_mistakes={(opponent_state?.totalKeystrokes ?? 0) - (opponent_state?.correctKeystrokes ?? 0)} my_hp={game_state.myState.hp} opponent_hp={opponent_state?.hp ?? 100} />
+                        <BattleScene quote_text={game_state.quote?.text ?? ''} connected={connected} status={game_state.status} winner={game_state.winner} paused={results_visible} particles_enabled={settings.particles_enabled} player_head_image={settings.fighter_head_image} on_player_image_change={(event) => void uploadImage('fighter_head_image', event)} image_picker_disabled={settings_loading || Boolean(uploading_target)} my_position={game_state.myState.position} opponent_position={opponent_state?.position ?? 0} my_mistakes={game_state.myState.totalKeystrokes - game_state.myState.correctKeystrokes} opponent_mistakes={(opponent_state?.totalKeystrokes ?? 0) - (opponent_state?.correctKeystrokes ?? 0)} my_hp={game_state.myState.hp} opponent_hp={opponent_state?.hp ?? 100} />
+                        {image_error
+                            ? <p className="arena-image-feedback form-error" role="alert">{image_error}</p>
+                            : image_message ? <p className="arena-image-feedback success" role="status">{image_message}</p> : null}
                         {game_state.status === 'countdown' && <div className="countdown-banner"><strong>{countdown || 3}</strong><span>Battle begins soon.</span></div>}
                         <TypingInterface key={game_state.quote?.id} gameState={game_state} onKeystroke={handleKeystroke} onDelete={handleDeletion} disabled={!connected} />
                     </>

@@ -8,7 +8,7 @@ const source = readFileSync(new URL('../../../lib/local-character-image.ts', imp
 const compiled = transpileModule(source, { compilerOptions: { module: ModuleKind.CommonJS, target: 9 } });
 const exports_object = {};
 runInNewContext(compiled.outputText, { exports: exports_object });
-const { validateCharacterImage } = exports_object;
+const { isCharacterImageSource, validateCharacterImage } = exports_object;
 
 test('local character images accept supported formats within the size limit', () => {
     assert.equal(validateCharacterImage({ type: 'image/jpeg', size: 1024 }), null);
@@ -19,4 +19,10 @@ test('local character images accept supported formats within the size limit', ()
 test('local character images reject unsupported formats and oversized files', () => {
     assert.equal(validateCharacterImage({ type: 'image/gif', size: 1024 }), 'Choose a JPEG, PNG, or WebP image.');
     assert.equal(validateCharacterImage({ type: 'image/png', size: 10 * 1024 * 1024 + 1 }), 'Choose an image smaller than 10 MB.');
+});
+
+test('shared character images only accept bounded image data URLs', () => {
+    assert.equal(isCharacterImageSource('data:image/webp;base64,YWJjZA=='), true);
+    assert.equal(isCharacterImageSource('https://example.com/image.webp'), false);
+    assert.equal(isCharacterImageSource('data:image/svg+xml;base64,YWJjZA=='), false);
 });
