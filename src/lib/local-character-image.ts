@@ -15,17 +15,21 @@ export async function prepareCharacterImage(file: File): Promise<string> {
     const object_url = URL.createObjectURL(file);
     try {
         const image = await loadImage(object_url);
-        const crop_size = Math.min(image.naturalWidth, image.naturalHeight);
-        const source_x = (image.naturalWidth - crop_size) / 2;
-        const source_y = (image.naturalHeight - crop_size) / 2;
         const canvas = document.createElement('canvas');
         canvas.width = OUTPUT_SIZE;
         canvas.height = OUTPUT_SIZE;
         const context = canvas.getContext('2d');
         if (!context) throw new Error('This browser cannot process the selected image.');
+        const scale = Math.min(OUTPUT_SIZE / image.naturalWidth, OUTPUT_SIZE / image.naturalHeight);
+        const output_width = image.naturalWidth * scale;
+        const output_height = image.naturalHeight * scale;
+        const output_x = (OUTPUT_SIZE - output_width) / 2;
+        const output_y = (OUTPUT_SIZE - output_height) / 2;
         context.imageSmoothingEnabled = true;
         context.imageSmoothingQuality = 'high';
-        context.drawImage(image, source_x, source_y, crop_size, crop_size, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+        context.fillStyle = '#0b1420';
+        context.fillRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+        context.drawImage(image, output_x, output_y, output_width, output_height);
         return canvas.toDataURL('image/webp', .86);
     } finally {
         URL.revokeObjectURL(object_url);

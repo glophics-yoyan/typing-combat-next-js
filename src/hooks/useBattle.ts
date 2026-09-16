@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { GameState, PlayerState, WebRTCMessage } from '@/types';
 import {
   createInitialGameState,
+  processDeletion,
   processKeystroke,
   applyOpponentState,
   applyDamage,
@@ -255,6 +256,13 @@ export function useBattle({
     });
   }, []);
 
+  const handleDeletion = useCallback((character_count: number) => {
+    setGameState((previous_state: GameState | null) => {
+      if (!previous_state || !isGameActive(previous_state)) return previous_state;
+      return processDeletion(previous_state, character_count);
+    });
+  }, []);
+
   const handleReady = useCallback(() => {
     setGameState((prev: GameState | null) => {
       if (!prev) return prev;
@@ -297,6 +305,7 @@ export function useBattle({
     error,
     countdown,
     handleKeystroke,
+    handleDeletion,
     handleReady,
     startCountdown,
     retryConnection,

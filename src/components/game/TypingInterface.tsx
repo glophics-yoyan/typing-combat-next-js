@@ -8,15 +8,16 @@ import { QuoteDisplay } from '@/components/game/QuoteDisplay';
 interface TypingInterfaceProps {
     gameState: GameState;
     onKeystroke: (char: string, is_correct: boolean) => void;
+    onDelete: (character_count: number) => void;
     disabled?: boolean;
 }
 
-export function TypingInterface({ gameState: game_state, onKeystroke, disabled = false }: TypingInterfaceProps) {
+export function TypingInterface({ gameState: game_state, onKeystroke, onDelete, disabled = false }: TypingInterfaceProps) {
     const input_ref = useRef<HTMLInputElement>(null);
     const input_value_ref = useRef('');
-    const [has_mistake, setHasMistake] = useState(false);
     const [mistake_positions, setMistakePositions] = useState<Set<number>>(() => new Set());
     const [focused, setFocused] = useState(false);
+    const has_mistake = mistake_positions.size > 0;
     const can_type = game_state.status === 'active' && !disabled;
     const quote = game_state.quote;
 
@@ -34,21 +35,20 @@ export function TypingInterface({ gameState: game_state, onKeystroke, disabled =
     }, []);
 
     if (!quote) return null;
-    const expected_char = quote.text[game_state.myState.position];
     const feedback = !can_type
         ? disabled ? 'Waiting for the connection. Typing is temporarily unavailable.' : 'Get ready. Your typing field activates when the countdown ends.'
-        : has_mistake ? 'Incorrect text. Use Backspace to erase it, then type the highlighted character.'
-        : focused ? 'Typing armed · Match the highlighted character.' : 'Click the typing field or press Tab to resume.';
+        : has_mistake ? 'Some characters are incorrect. Keep typing or use Backspace to revise them.'
+        : focused ? 'Typing armed · Backspace can revise any typed character.' : 'Click the quote or press Tab to resume typing.';
 
     return (
         <Panel className={'typing-panel' + (has_mistake ? ' has-mistake' : '')}>
             <div className="panel-topline"><span className="eyebrow">TYPE TO ATTACK</span><span className="micro-label">PRECISION = POWER</span></div>
-            <QuoteDisplay quote={quote} position={game_state.myState.position} mistake_positions={mistake_positions} />
-            <div className="field typing-entry">
-                <label htmlFor="typing-input">Your typing field</label>
+            <div className="typing-capture" onClick={() => input_ref.current?.focus({ preventScroll: true })}>
+                <QuoteDisplay quote={quote} position={game_state.myState.position} mistake_positions={mistake_positions} />
                 <input
                     ref={input_ref}
                     id="typing-input"
+                    className="typing-input"
                     type="text"
                     disabled={!can_type}
                     onInput={(event) => {
@@ -58,32 +58,25 @@ export function TypingInterface({ gameState: game_state, onKeystroke, disabled =
                         const previous_value = input_value_ref.current;
 
                         if (input_event.isComposing) return;
-                        input_value_ref.current = value;
-
                         if (input_event.inputType.startsWith('delete')) {
-                            const has_remaining_mistake = value.length > 0;
-                            setHasMistake(has_remaining_mistake);
-                            if (!has_remaining_mistake) {
-                                setMistakePositions((current_positions) => {
-                                    const next_positions = new Set(current_positions);
-                                    next_positions.delete(game_state.myState.position);
-                                    return next_positions;
-                                });
-                            }
-                            return;
-                        }
-
-                        if (previous_value) {
-                            setHasMistake(true);
+                            const deleted_count = Math.max(0, previous_value.length - value.length);
+                            input_value_ref.current = value;
+                            if (deleted_count > 0) onDelete(deleted_count);
+                            setMistakePositions((current_positions) => {
+                                return new Set(
+                                    [...current_positions].filter((position) => position < value.length),
+                                );
+                            });
                             return;
                         }
 
                         const inserted_value = input_event.data
                             ?? (value.startsWith(previous_value) ? value.slice(previous_value.length) : '');
-                        if (!inserted_value || expected_char === undefined) return;
-                        const start_position = game_state.myState.position;
+                        if (!inserted_value) return;
+                        const start_position = previous_value.length;
                         const inserted_characters = Array.from(inserted_value);
-                        let rejected_value = '';
+                        const accepted_characters: string[] = [];
+                        const next_mistake_positions = new Set(mistake_positions);
 
                         for (const [index, char] of inserted_characters.entries()) {
                             const position = start_position + index;
@@ -91,17 +84,15 @@ export function TypingInterface({ gameState: game_state, onKeystroke, disabled =
                             if (target_char === undefined) break;
                             const is_correct = char === target_char;
                             onKeystroke(char, is_correct);
-
-                            if (!is_correct) {
-                                rejected_value = inserted_characters.slice(index).join('');
-                                setMistakePositions((current_positions) => new Set([...current_positions, position]));
-                                break;
-                            }
+                            accepted_characters.push(char);
+                            if (is_correct) next_mistake_positions.delete(position);
+                            else next_mistake_positions.add(position);
                         }
 
-                        event.currentTarget.value = rejected_value;
-                        input_value_ref.current = rejected_value;
-                        setHasMistake(Boolean(rejected_value));
+                        const accepted_value = previous_value + accepted_characters.join('');
+                        event.currentTarget.value = accepted_value;
+                        input_value_ref.current = accepted_value;
+                        setMistakePositions(next_mistake_positions);
                     }}
                     onPaste={(event) => event.preventDefault()}
                     onFocus={() => setFocused(true)}
@@ -110,7 +101,8 @@ export function TypingInterface({ gameState: game_state, onKeystroke, disabled =
                     autoCorrect="off"
                     autoCapitalize="off"
                     spellCheck={false}
-                    placeholder={can_type ? 'Type the highlighted character…' : 'Stand by…'}
+                    maxLength={quote.text.length}
+                    aria-label="Type the battle quote"
                     aria-describedby="typing-feedback"
                 />
             </div>

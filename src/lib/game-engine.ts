@@ -72,7 +72,7 @@ export function processKeystroke(
     return gameState;
   }
 
-  const newPosition = isCorrect ? Math.min(myState.position + 1, quote.text.length) : myState.position;
+  const newPosition = Math.min(myState.position + 1, quote.text.length);
   const keystrokeTime = Date.now();
   const timeSinceStart = gameState.startTime ? keystrokeTime - gameState.startTime : 0;
 
@@ -193,6 +193,21 @@ export function beginActiveGame(gameState: GameState, startTime = Date.now()): G
     ...gameState,
     status: 'active',
     startTime,
+  };
+}
+
+export function processDeletion(game_state: GameState, character_count = 1): GameState {
+  if (!game_state.quote || game_state.myState.hp <= 0 || game_state.status !== 'active' || character_count <= 0) {
+    return game_state;
+  }
+
+  return {
+    ...game_state,
+    myState: {
+      ...game_state.myState,
+      position: Math.max(0, game_state.myState.position - character_count),
+      lastKeystroke: Date.now(),
+    },
   };
 }
 

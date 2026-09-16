@@ -195,8 +195,10 @@ function CombatWorld({ snapshot, cue_refs, effects_enabled, opponent_kind, playe
             bag.root.position.set(positions[1], 0, 0);
             bag.target.rotation.z = -Math.sin(hit_age * 24) * impact * .2;
             bag.target.position.x = impact * .08;
-            bag.padding.emissive.set(impact > .55 ? '#ffb0a9' : '#000000');
-            bag.padding.emissiveIntensity = impact * .8;
+            if (bag.padding) {
+                bag.padding.emissive.set(impact > .55 ? '#ffb0a9' : '#000000');
+                bag.padding.emissiveIntensity = impact * .8;
+            }
         }
         const shake = live ? Math.max(...timeline.fighters.map((fighter) => ['kick', 'throw'].includes(fighter.hit_kind) ? Math.max(0, 1 - (now - fighter.hit_at) / .15) : 0)) : 0;
         camera.position.x = Math.sin(now * 95) * shake * .035;

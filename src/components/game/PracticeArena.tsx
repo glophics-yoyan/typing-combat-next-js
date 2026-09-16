@@ -11,7 +11,7 @@ import { Button, GameDialog, GameFooter, GameHeader, Metric, Panel, Status } fro
 
 export function PracticeArena() {
     const { settings, loading: settings_loading } = useSettings();
-    const { game_state, countdown, loading, error, startPractice, handleKeystroke } = usePracticeBattle(settings.quote_difficulty, !settings_loading);
+    const { game_state, countdown, loading, error, startPractice, handleKeystroke, handleDeletion } = usePracticeBattle(settings.quote_difficulty, !settings_loading);
     const [results_visible, setResultsVisible] = useState(false);
     const previous_position_ref = useRef(0);
 
@@ -89,7 +89,7 @@ export function PracticeArena() {
                         />
                         {game_state.status === 'countdown' && <div className="countdown-banner" role="status"><strong>{countdown || 3}</strong><span>Hands on the keyboard. Practice begins soon.</span></div>}
                         {game_state.status === 'finished' && !results_visible && <div className="finish-actions"><span>Drill complete.</span><Button variant="secondary" onClick={() => setResultsVisible(true)}>View results</Button></div>}
-                        <TypingInterface gameState={game_state} onKeystroke={typeCharacter} />
+                        <TypingInterface key={game_state.quote?.id} gameState={game_state} onKeystroke={typeCharacter} onDelete={handleDeletion} />
                         <div className="practice-target-note"><span>TARGET</span><strong>Punching Bag</strong><span>Complete the quote to finish the drill.</span></div>
                     </>
                 )}

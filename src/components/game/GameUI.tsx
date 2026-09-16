@@ -82,7 +82,7 @@ export function ArenaArtwork({ opponent_kind = 'fighter', player_head_image = nu
             <div className="arena-grid" />
             <div className="combatant combatant-left"><div className={'helmet' + (player_head_image ? ' has-local-image' : '')}>{player_head_image ? <b className="local-image-face" style={{ backgroundImage: `url("${player_head_image}")` }} /> : <i />}</div><div className="armor"><i /></div><div className="arm arm-left" /><div className="arm arm-right" /><div className="legs" /></div>
             {is_practice
-                ? <div className="fallback-punching-bag"><div className="bag-target">{punching_bag_image ? <b className="local-image-face bag-image-face" style={{ backgroundImage: `url("${punching_bag_image}")` }} /> : <><i /><span /></>}</div><div className="bag-post" /><div className="bag-base" /></div>
+                ? <div className="fallback-punching-bag"><div className={'bag-target' + (punching_bag_image ? ' has-local-image' : '')}>{punching_bag_image ? <b className="local-image-face bag-image-face" style={{ backgroundImage: `url("${punching_bag_image}")` }} /> : <><i /><span /></>}</div><div className="bag-post" /><div className="bag-base" /></div>
                 : <div className="combatant combatant-right"><div className="helmet"><i /></div><div className="armor"><i /></div><div className="arm arm-left" /><div className="arm arm-right" /><div className="legs" /></div>}
             <div className="arena-versus">{is_practice ? 'PRACTICE' : 'VS'}<span>{is_practice ? 'SOLO DRILL' : 'DUEL PROTOCOL'}</span></div>
             <span className="art-label art-label-left">01 / YOU</span><span className="art-label art-label-right">{is_practice ? 'TARGET / BAG' : '02 / OPPONENT'}</span>

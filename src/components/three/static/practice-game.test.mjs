@@ -14,6 +14,7 @@ const {
     calculateWpm,
     createPracticeGameState,
     finishPracticeIfComplete,
+    processDeletion,
     processKeystroke,
 } = exports_object;
 
@@ -31,22 +32,30 @@ test('practice initializes an inert target and activates after the countdown', (
     assert.equal(advancePracticeCountdown(state, 4000).status, 'active');
 });
 
-test('practice records typing accuracy and only completes after the quote', () => {
+test('practice records each position independently and only completes after the quote', () => {
     let state = advancePracticeCountdown(createPracticeGameState(createQuote(), 1), 1);
     state = processKeystroke(state, 'a', true);
     assert.equal(state.myState.position, 1);
     state = processKeystroke(state, 'x', false);
-    assert.equal(state.myState.position, 1);
+    assert.equal(state.myState.position, 2);
     assert.equal(state.myState.totalKeystrokes, 2);
     assert.equal(state.myState.correctKeystrokes, 1);
-    assert.equal(finishPracticeIfComplete(state, 10), state);
-    state = processKeystroke(state, 'b', true);
     state = finishPracticeIfComplete(state, 25);
     assert.equal(state.status, 'finished');
     assert.equal(state.winner, 'me');
     assert.equal(state.endTime, 25);
-    assert.equal(calculateAccuracy(2, 3), 2 / 3);
+    assert.equal(calculateAccuracy(1, 2), 1 / 2);
     assert.equal(calculateWpm(10, 60000), 2);
+});
+
+test('practice can erase correct or incorrect typed characters', () => {
+    let state = advancePracticeCountdown(createPracticeGameState(createQuote('abc'), 1), 1);
+    state = processKeystroke(state, 'a', true);
+    state = processKeystroke(state, 'x', false);
+    state = processDeletion(state, 2);
+    assert.equal(state.myState.position, 0);
+    assert.equal(state.myState.totalKeystrokes, 2);
+    assert.equal(state.myState.correctKeystrokes, 1);
 });
 
 test('starting another practice run resets session progress', () => {

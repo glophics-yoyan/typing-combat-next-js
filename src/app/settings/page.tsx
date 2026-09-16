@@ -63,17 +63,17 @@ export default function SettingsPage() {
                     <label className="setting-row"><span><strong>Combat particles</strong><small>Show word projectiles, sparks, and impact bursts.</small></span><input type="checkbox" checked={settings.particles_enabled} onChange={(event) => update('particles_enabled', event.target.checked)} /></label>
                     <label className="setting-row"><span><strong>Battle sounds</strong><small>Play synthesized typing and combat cues.</small></span><input type="checkbox" checked={settings.sound_enabled} onChange={(event) => update('sound_enabled', event.target.checked)} /></label>
                     <div className="character-customization">
-                        <div><p className="eyebrow">LOCAL CHARACTER IMAGES</p><h2>Customize your training crew.</h2><p className="muted">Images are cropped, resized, and stored only in this browser. They are never uploaded.</p></div>
+                        <div><p className="eyebrow">LOCAL CHARACTER IMAGES</p><h2>Customize your training crew.</h2><p className="muted">The complete image is fitted, resized, and stored only in this browser. It is never uploaded.</p></div>
                         <div className="image-customization-grid">
                             <section className="image-setting-card" aria-labelledby="fighter-image-title">
                                 <div className="local-image-preview fighter-image-preview" role="img" aria-label={settings.fighter_head_image ? 'Custom fighter head preview' : 'Default fighter head preview'} style={settings.fighter_head_image ? { backgroundImage: `url("${settings.fighter_head_image}")` } : undefined}><span>{settings.fighter_head_image ? '' : 'DEFAULT'}</span></div>
-                                <div><h3 id="fighter-image-title">Fighter head</h3><p>Mapped onto your fighter’s 3D faceplate in battles and practice.</p></div>
+                                <div><h3 id="fighter-image-title">Fighter head</h3><p>Replaces your fighter’s entire 3D head in battles and practice.</p></div>
                                 <input className="local-image-input" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose fighter head image" disabled={loading || Boolean(uploading_target)} onChange={(event) => void uploadImage('fighter_head_image', event)} />
                                 {settings.fighter_head_image && <Button variant="secondary" disabled={Boolean(uploading_target)} onClick={() => void removeImage('fighter_head_image')}>Remove image</Button>}
                             </section>
                             <section className="image-setting-card" aria-labelledby="bag-image-title">
                                 <div className="local-image-preview bag-image-preview" role="img" aria-label={settings.punching_bag_image ? 'Custom punching bag target preview' : 'Default punching bag target preview'} style={settings.punching_bag_image ? { backgroundImage: `url("${settings.punching_bag_image}")` } : undefined}><span>{settings.punching_bag_image ? '' : 'TARGET'}</span></div>
-                                <div><h3 id="bag-image-title">Punching bag target</h3><p>Fitted to the reactive 3D target in solo practice.</p></div>
+                                <div><h3 id="bag-image-title">Punching bag body</h3><p>Wraps the entire reactive 3D bag body in solo practice.</p></div>
                                 <input className="local-image-input" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose punching bag target image" disabled={loading || Boolean(uploading_target)} onChange={(event) => void uploadImage('punching_bag_image', event)} />
                                 {settings.punching_bag_image && <Button variant="secondary" disabled={Boolean(uploading_target)} onClick={() => void removeImage('punching_bag_image')}>Remove image</Button>}
                             </section>

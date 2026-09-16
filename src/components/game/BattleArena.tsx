@@ -29,7 +29,7 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
     const opponent_hp_ref = useRef(100);
     const {
         gameState: game_state, connected, opponentConnected: opponent_connected, error, countdown,
-        handleKeystroke, handleReady, requestRematch, retryConnection, rematchVotes: rematch_votes,
+        handleKeystroke, handleDeletion, handleReady, requestRematch, retryConnection, rematchVotes: rematch_votes,
         opponentUsername: live_opponent_name,
     } = useAuthoritativeBattle({
         room_code,
@@ -132,7 +132,7 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
                                 <p className="invite-link">{invite_url}</p>
                                 <div className="divider"><span>PRE-FLIGHT CHECK</span></div>
                                 <Button className="full-width" onClick={readyForBattle} disabled={!connected || !opponent_connected || game_state.myState.isReady}>{game_state.myState.isReady ? 'Ready · Waiting for your rival' : 'Ready to battle'}<span aria-hidden="true">→</span></Button>
-                                <p className="lobby-hint">Type fast, stay accurate. Finish the quote first or reduce your opponent’s health to zero. Wrong text stops your cursor until you erase it with Backspace and type the correct text.</p>
+                                <p className="lobby-hint">Type fast, stay accurate. Finish the quote first or reduce your opponent’s health to zero. Mistakes are marked individually, and Backspace can revise any typed character.</p>
                             </Panel>
                         </div>
                         <Link href="/" className="text-link">← Leave room and return to lobby</Link>
@@ -151,7 +151,7 @@ export function BattleArena({ roomCode: room_code, isHost: is_host, userId: user
                         {game_state.status === 'paused' && <div className="countdown-banner" role="status"><strong>PAUSED</strong><span>Waiting up to 30 seconds for both fighters to reconnect.</span></div>}
                         {cancelled && <Panel className="empty-state"><h2>This battle was cancelled.</h2><p className="muted">A fighter did not reconnect in time. No result was added to your combat record.</p><div className="dialog-actions"><Button onClick={requestRematch} disabled={!opponent_connected || rematch_votes[user_id]}>Request rematch</Button><Link href="/" className="button button-secondary">Back to lobby</Link></div></Panel>}
                         {game_state.status === 'finished' && !result_available && <Panel className="empty-state"><h2>This battle has already finished.</h2><p className="muted">The live result is no longer available. Both fighters can request a fresh rematch.</p><div className="dialog-actions"><Button onClick={requestRematch} disabled={!opponent_connected || rematch_votes[user_id]}>Request rematch</Button><Link href="/" className="button button-secondary">Back to lobby</Link></div></Panel>}
-                        <TypingInterface gameState={game_state} onKeystroke={typeCharacter} disabled={!connected || !opponent_connected} />
+                        <TypingInterface key={game_state.quote?.id} gameState={game_state} onKeystroke={typeCharacter} onDelete={handleDeletion} disabled={!connected || !opponent_connected} />
                         {opponent_state && <div className="opponent-progress"><span>OPPONENT</span><strong>{opponent_name}</strong><progress aria-label="Opponent quote progress" value={opponent_state.position} max={game_state.quote?.text.length || 1} /><span>{Math.round(opponent_state.wpm)} WPM · {Math.round(opponent_state.accuracy * 100)}% accuracy</span></div>}
                     </>
                 )}

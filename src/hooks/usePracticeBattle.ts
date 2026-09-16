@@ -7,6 +7,7 @@ import {
     advancePracticeCountdown,
     createPracticeGameState,
     finishPracticeIfComplete,
+    processDeletion,
     processKeystroke,
 } from '@/lib/game-engine';
 
@@ -69,5 +70,9 @@ export function usePracticeBattle(difficulty: LocalStats['settings']['quote_diff
         });
     }, []);
 
-    return { game_state, countdown, loading, error, startPractice, handleKeystroke };
+    const handleDeletion = useCallback((character_count: number) => {
+        setGameState((current_state) => current_state ? processDeletion(current_state, character_count) : current_state);
+    }, []);
+
+    return { game_state, countdown, loading, error, startPractice, handleKeystroke, handleDeletion };
 }

@@ -226,6 +226,10 @@ export function useAuthoritativeBattle({ room_code, user_id, join_token, on_game
         });
     }, [game_state?.status, saveJournal]);
 
+    const handleDeletion = useCallback((character_count: number) => {
+        for (let index = 0; index < character_count; index += 1) handleKeystroke('\b');
+    }, [handleKeystroke]);
+
     return {
         gameState: game_state,
         connected,
@@ -235,6 +239,7 @@ export function useAuthoritativeBattle({ room_code, user_id, join_token, on_game
         opponentUsername: opponent_username,
         rematchVotes: rematch_votes,
         handleKeystroke,
+        handleDeletion,
         handleReady: () => battle_api_ref.current?.sendReady(),
         requestRematch: () => battle_api_ref.current?.sendRematch(true),
         retryConnection: () => setConnectionAttempt((attempt) => attempt + 1),
@@ -259,9 +264,15 @@ function toPlayerState(player: BattlePlayer): PlayerState {
 }
 
 function applyOptimisticInput(player: PlayerState, quote: Quote | null, entry: JournalEntry) {
-    if (!quote || player.position >= quote.text.length) return;
+    if (!quote) return;
+    if (entry.character === '\b') {
+        player.position = Math.max(0, player.position - 1);
+        player.lastKeystroke = entry.client_timestamp;
+        return;
+    }
+    if (player.position >= quote.text.length) return;
     const is_correct = entry.character === quote.text[player.position];
-    if (is_correct) player.position = Math.min(player.position + 1, quote.text.length);
+    player.position = Math.min(player.position + 1, quote.text.length);
     player.totalKeystrokes += 1;
     player.correctKeystrokes += is_correct ? 1 : 0;
     player.accuracy = player.totalKeystrokes > 0 ? player.correctKeystrokes / player.totalKeystrokes : 1;
