@@ -2,7 +2,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, start the sibling `typeracer-api` service. Its realtime server is preferred for low-latency PvP, while the REST service remains a fallback. Then configure this app:
+First, start the sibling `typeracer-api` REST service. Then configure this app:
 
 ```bash
 copy .env.example .env
@@ -30,7 +30,7 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-For production REST fallback, deploy `typeracer-api` as an Express API on Vercel and set `NEXT_PUBLIC_API_URL`. For low-latency PvP, deploy the API's persistent realtime entrypoint on a WebSocket-capable Node host and set `NEXT_PUBLIC_WEBSOCKET_URL=wss://your-realtime-api.example.com/ws`. When that variable is present, protocol v2 sends inputs immediately and receives authoritative snapshots over the socket instead of polling. Redeploy the frontend whenever either public URL changes.
+For production, deploy `typeracer-api` as an Express API on Vercel. Set `NEXT_PUBLIC_API_URL=https://typeracer-api.vercel.app` and `NEXT_PUBLIC_GAME_PROTOCOL_VERSION=2` in this Vercel project, then redeploy the frontend so the public values are included in its build.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

@@ -1,8 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AuthoritativeBattleTransport, AuthoritativeEvent } from '@/lib/authoritative-battle-api';
-import { createAuthoritativeBattleTransport } from '@/lib/authoritative-battle-socket';
+import { AuthoritativeBattleApi, type AuthoritativeEvent } from '@/lib/authoritative-battle-api';
 import type { ApiEnvelope, BattlePlayer, GameState, MatchResult, PlayerState, Quote, RoomSessionData, RoomSnapshot } from '@/types';
 
 interface UseAuthoritativeBattleOptions {
@@ -33,7 +32,7 @@ export function useAuthoritativeBattle({ room_code, user_id, join_token, on_game
     const [connection_attempt, setConnectionAttempt] = useState(0);
     const [rematch_votes, setRematchVotes] = useState<Record<string, boolean>>({});
     const [active_join_token, setActiveJoinToken] = useState(join_token);
-    const battle_api_ref = useRef<AuthoritativeBattleTransport | null>(null);
+    const battle_api_ref = useRef<AuthoritativeBattleApi | null>(null);
     const sequence_ref = useRef(0);
     const acknowledged_sequence_ref = useRef(0);
     const match_id_ref = useRef<string | null>(null);
@@ -139,7 +138,7 @@ export function useAuthoritativeBattle({ room_code, user_id, join_token, on_game
     }, [handleSnapshot, saveJournal, user_id]);
 
     useEffect(() => {
-        const battle_api = createAuthoritativeBattleTransport(room_code, active_join_token);
+        const battle_api = new AuthoritativeBattleApi(room_code, active_join_token);
         battle_api_ref.current = battle_api;
         replay_on_snapshot_ref.current = true;
         const unsubscribe_message = battle_api.onMessage(handleEvent);

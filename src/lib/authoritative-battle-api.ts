@@ -6,20 +6,9 @@ export type AuthoritativeEvent =
     | { type: 'match_cancelled'; payload: MatchResult }
     | { type: 'rematch_status'; payload: { votes: Record<string, boolean>; expires_at: number | null } };
 
-export type MessageHandler = (message: AuthoritativeEvent) => void;
-export type ConnectionHandler = (connected: boolean) => void;
-export type ErrorHandler = (error: Error) => void;
-
-export interface AuthoritativeBattleTransport {
-    initialize: () => void;
-    sendReady: () => void;
-    sendInput: (sequence: number, character: string, client_timestamp?: number) => void;
-    sendRematch: (accepted: boolean) => void;
-    onMessage: (handler: MessageHandler) => () => void;
-    onConnectionChange: (handler: ConnectionHandler) => () => void;
-    onError: (handler: ErrorHandler) => () => void;
-    destroy: () => void;
-}
+type MessageHandler = (message: AuthoritativeEvent) => void;
+type ConnectionHandler = (connected: boolean) => void;
+type ErrorHandler = (error: Error) => void;
 
 const ACTIVE_POLL_INTERVAL_MS = 250;
 const IDLE_POLL_INTERVAL_MS = 750;
@@ -27,7 +16,7 @@ const FINISHED_POLL_INTERVAL_MS = 1000;
 const REQUEST_TIMEOUT_MS = 10000;
 const INPUT_BATCH_INTERVAL_MS = 100;
 
-export class AuthoritativeBattleApi implements AuthoritativeBattleTransport {
+export class AuthoritativeBattleApi {
     private poll_timer: ReturnType<typeof setTimeout> | null = null;
     private active_requests = new Set<AbortController>();
     private command_chain: Promise<void> = Promise.resolve();
